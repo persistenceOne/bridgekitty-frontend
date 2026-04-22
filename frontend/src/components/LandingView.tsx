@@ -63,12 +63,12 @@ export function LandingView({ onHumanClick, onAgentClick }: LandingViewProps) {
       {/* ── Hero ── */}
       <div className="hf-hero">
         <h1>
-          <span className="hf-hero-line1">You Always</span>
+          <span className="hf-hero-line1">Always</span>
           <br />
           <span className="hf-hero-highlight">Get The Best Route</span>
         </h1>
         <p className="hf-hero-sub">
-          Cross-Chain Swap Aggregator
+          With BridgeKitty, Cross-Chain Swap Aggregator.
         </p>
       </div>
 
@@ -77,7 +77,7 @@ export function LandingView({ onHumanClick, onAgentClick }: LandingViewProps) {
         <button className="hf-role-card" onClick={onHumanClick}>
           <div>
             <p className="hf-role-title">Human</p>
-            <p className="hf-role-sub">Swap across chains. Best quotes. 🐱</p>
+            <p className="hf-role-sub">Swap any asset. Best quotes. 🐱</p>
           </div>
           <span className="hf-role-icon">
             <UserRound size={18} />
@@ -87,7 +87,7 @@ export function LandingView({ onHumanClick, onAgentClick }: LandingViewProps) {
         <button className="hf-role-card hf-role-card-muted" onClick={onAgentClick}>
           <div>
             <p className="hf-role-title">Agent</p>
-            <p className="hf-role-sub">Claude · GPT · Gemini · any AI workflow</p>
+            <p className="hf-role-sub">Claude · GPT · Gemini · any agent</p>
           </div>
           <span className="hf-role-icon hf-role-icon-muted">
             <Bot size={18} />

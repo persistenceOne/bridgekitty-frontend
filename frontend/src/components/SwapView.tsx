@@ -378,7 +378,7 @@ export function SwapView({
             <History size={15} strokeWidth={2} />
           </button>
 
-          <h3 className="hf-swap-title">Swap with <span>BridgeKitty</span></h3>
+          <h3 className="hf-swap-title">Best route, <span> every time</span></h3>
           <div className="hf-swap-powered">
             Powered by
             <img src="/providers/lifi.png" alt="LI.FI" className="hf-swap-powered-logo" />
