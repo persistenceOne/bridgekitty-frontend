@@ -256,7 +256,7 @@ function App() {
           <a href="https://t.me/PersistenceOneChat" target="_blank" rel="noopener noreferrer">Help</a>
           <a href="https://persistence.one/privacy?lang=en" target="_blank" rel="noopener noreferrer">Privacy Policy</a>
         </div>
-        <p>© 2026 BridgeKitty. All Rights Reserved.</p>
+        <p>© 2026 Persistence Labs. All Rights Reserved.</p>
       </footer>
     </div>
   );

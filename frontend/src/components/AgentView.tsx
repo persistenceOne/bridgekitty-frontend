@@ -49,25 +49,6 @@ export function AgentView({ onBack }: AgentViewProps) {
         {/* ── Intro ─────────────────────────────────────────── */}
         <div className="hf-agent-hero">
           <h2 className="hf-agent-headline">Introducing BridgeKitty MCP 🐈</h2>
-          <p className="hf-agent-sub">Dear Persisters,</p>
-          <p className="hf-agent-sub">We've been building something behind the scenes.</p>
-          <p className="hf-agent-sub">And today, it's time to share it with you. We're excited to see what you do with it.</p>
-          <p className="hf-agent-sub">Introducing BridgeKitty MCP 🐈 for your AI agent.</p>
-          <p className="hf-agent-sub">
-            BridgeKitty MCP is a <strong>cross-chain bridge aggregator for AI agents</strong>, connecting
-            the best routes across EVM, Solana, and Cosmos.
-          </p>
-          <p className="hf-agent-sub">
-            We strongly believe that AI agents will become the main users in DeFi. This is a step towards that.
-          </p>
-          <p className="hf-agent-sub">
-            BridgeKitty MCP makes it easier to interact with our Interop product, move assets across chains,
-            and explore DeFi using simple, natural language with your agent.
-          </p>
-          <p className="hf-agent-sub">
-            It's still early.<br />
-            But we've already added a set of functionalities that you can start using today.
-          </p>
           <p className="hf-agent-sub">We'll walk you through everything BridgeKitty MCP can do in this guide.</p>
           <p className="hf-agent-sub">Feel free to explore at your own pace.</p>
           <p className="hf-agent-sub">
@@ -213,51 +194,10 @@ export function AgentView({ onBack }: AgentViewProps) {
           </p>
         </div>
 
-        {/* ── Before wrapping up ────────────────────────────── */}
-        <div className="hf-agent-section hf-agent-closing" id="wrapping">
-          <p className="hf-agent-closing-text">BridgeKitty MCP is early. But the direction is clear.</p>
-          <p className="hf-agent-closing-text">
-            AI agents won't just assist in DeFi.<br />They'll operate within it.
-          </p>
-          <p className="hf-agent-closing-text">
-            The experience needs to match that shift. BridgeKitty MCP is one step in that direction.
-          </p>
-          <p className="hf-agent-closing-cta">Try it. Break it. Push it further.</p>
-          <p className="hf-agent-closing-text">We're excited to see what you prompt.</p>
-        </div>
-
-        {/* ── About Persistence One ─────────────────────────── */}
-        <div className="hf-agent-section" id="about">
-          <div className="hf-agent-section-header">
-            <h3>About Persistence One</h3>
-          </div>
-          <p className="hf-agent-section-desc">
-            Persistence One is building intent-based Bitcoin interoperability—simple, reliable
-            cross-chain swaps across Bitcoin L2s, sidechains, and BTC-aligned networks.
-          </p>
-          <p className="hf-agent-section-desc">
-            Our mission is to reduce fragmentation across the Bitcoin ecosystem and make
-            cross-chain value transfer intuitive for users, developers, and partners.
-          </p>
-          <p className="hf-agent-section-desc hf-agent-about-links">
-            <a href={TWITTER_URL}  target="_blank" rel="noopener noreferrer" className="hf-agent-inline-link">Twitter</a>
-            {' | '}
-            <a href={LINKEDIN_URL} target="_blank" rel="noopener noreferrer" className="hf-agent-inline-link">LinkedIn</a>
-            {' | '}
-            <a href={TELEGRAM_URL} target="_blank" rel="noopener noreferrer" className="hf-agent-inline-link">Telegram</a>
-            {' | '}
-            <a href={YOUTUBE_URL}  target="_blank" rel="noopener noreferrer" className="hf-agent-inline-link">YouTube</a>
-            {' | '}
-            <a href={REDDIT_URL}   target="_blank" rel="noopener noreferrer" className="hf-agent-inline-link">Reddit</a>
-            {' | '}
-            <a href="mailto:hello@persistence.one" className="hf-agent-inline-link">hello@persistence.one</a>
-          </p>
-        </div>
-
         {/* ── Back ──────────────────────────────────────────── */}
         <div className="hf-agent-footer">
           <button className="hf-btn hf-btn-secondary" onClick={onBack}>
-            Back to Homepage
+            Go Back To Homepage
           </button>
         </div>
 
