@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "bridgekitty": {
+      "command": "node",
+      "args": ["./mcp/dist/index.js"],
+      "env": {
+        "BRIDGEKITTY_API_URL": "http://localhost:8080"
+      }
+    }
+  }
+}
