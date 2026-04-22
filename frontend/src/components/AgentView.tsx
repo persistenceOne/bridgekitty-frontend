@@ -48,9 +48,9 @@ export function AgentView({ onBack }: AgentViewProps) {
 
         {/* ── Intro ─────────────────────────────────────────── */}
         <div className="hf-agent-hero">
-          <h2 className="hf-agent-headline">Introducing BridgeKitty MCP 🐈</h2>
-          <p className="hf-agent-sub">We'll walk you through everything BridgeKitty MCP can do in this guide.</p>
-          <p className="hf-agent-sub">Feel free to explore at your own pace.</p>
+          <h2 className="hf-agent-headline">Get Started With BridgeKitty MCP 🐈</h2>
+          <p className="hf-agent-sub">We'll walk you through everything BridgeKitty MCP can do in this guide. Feel free to explore at your own pace.</p>
+          <br></br>
           <p className="hf-agent-sub">
             And if you have any questions, reach out to the team or moderators in the{' '}
             <a href={TELEGRAM_CHAT_URL} target="_blank" rel="noopener noreferrer" className="hf-agent-inline-link">
@@ -71,8 +71,6 @@ export function AgentView({ onBack }: AgentViewProps) {
               ['#step-4', 'Step 4: Move assets across networks'],
               ['#step-5', 'Step 5: Explore with your agent'],
               ['#enables', 'What BridgeKitty MCP enables'],
-              ['#wrapping', 'Before wrapping up'],
-              ['#about',   'About Persistence One'],
             ] as [string, string][]).map(([href, label]) => (
               <li key={href}>
                 <a href={href} className="hf-agent-toc-link">
@@ -151,7 +149,6 @@ export function AgentView({ onBack }: AgentViewProps) {
               <li>Return the status</li>
             </ul>
           </div>
-          <p className="hf-agent-section-desc">No dashboards. No switching tabs. No manual routing.</p>
         </div>
 
         {/* ── Step 5 ────────────────────────────────────────── */}

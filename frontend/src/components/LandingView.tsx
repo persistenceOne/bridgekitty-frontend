@@ -1,4 +1,4 @@
-import { motion } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import { Bot, UserRound } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { API_BASE_URL, PROVIDER_META } from '../constants';
@@ -40,9 +40,17 @@ function useCountUp(target: number | null, duration = 1100): number | null {
   return value;
 }
 
+const HERO_WORDS = ['Route', 'Swap'];
+
 export function LandingView({ onHumanClick, onAgentClick }: LandingViewProps) {
   const [lifetimeVolume, setLifetimeVolume] = useState<number | null>(null);
   const displayVolume = useCountUp(lifetimeVolume);
+  const [wordIdx, setWordIdx] = useState(0);
+
+  useEffect(() => {
+    const id = setInterval(() => setWordIdx(i => (i + 1) % HERO_WORDS.length), 3000);
+    return () => clearInterval(id);
+  }, []);
 
   useEffect(() => {
     fetch(`${API_BASE_URL}/stats?period=all`)
@@ -65,7 +73,21 @@ export function LandingView({ onHumanClick, onAgentClick }: LandingViewProps) {
         <h1>
           <span className="hf-hero-line1">Always</span>
           <br />
-          <span className="hf-hero-highlight">Get The Best Route</span>
+          <span className="hf-hero-highlight">
+            Get The Best{' '}
+            <AnimatePresence mode="wait">
+              <motion.span
+                key={HERO_WORDS[wordIdx]}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.28 }}
+                style={{ display: 'inline-block' }}
+              >
+                {HERO_WORDS[wordIdx]}
+              </motion.span>
+            </AnimatePresence>
+          </span>
         </h1>
         <p className="hf-hero-sub">
           With BridgeKitty, Cross-Chain Swap Aggregator.
