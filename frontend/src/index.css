@@ -1047,6 +1047,7 @@ input, select, textarea, button { font-family: inherit; }
   color: var(--hf-text-primary);
   margin: 0;
   line-height: 1.5;
+  white-space: pre-line;
 }
 
 /* Install block */
