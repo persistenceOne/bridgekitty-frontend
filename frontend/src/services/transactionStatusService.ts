@@ -1,4 +1,5 @@
 import type { ChainKey } from '../lib/chains';
+import { resolveApiBaseUrl } from '../lib/apiBaseUrl';
 
 export type TxStage = 'submitted' | 'confirming' | 'bridging' | 'completed' | 'failed' | 'pending';
 
@@ -10,22 +11,6 @@ export interface TxStatusResult {
   receivingTxHash?: string;   // Destination-chain tx (cross-chain only, appears late)
   explorerLink?: string;      // Best explorer link (destination tx if available, else LI.FI)
   lifiExplorerLink?: string;  // LI.FI cross-chain explorer
-}
-
-function resolveApiBaseUrl(): string {
-  const fromEnv = import.meta.env.VITE_BRIDGEKITTY_API_BASE_URL;
-  if (fromEnv && fromEnv.trim().length > 0) {
-    return fromEnv.replace(/\/$/, '');
-  }
-
-  if (
-    typeof window !== 'undefined' &&
-    ['localhost', '127.0.0.1'].includes(window.location.hostname)
-  ) {
-    return 'http://localhost:8080/api';
-  }
-
-  return '';
 }
 
 export async function fetchTransactionStatus(

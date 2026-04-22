@@ -55,7 +55,7 @@ router.get('/transactions', async (req, res) => {
     return res.status(503).json({ error: 'Database unavailable. Add MONGODB_URI and retry.' });
   }
 
-  const limit = Math.min(Number(req.query.limit ?? 25), 100);
+  const limit = Math.min(Math.max(Number(req.query.limit) || 25, 1), 100);
   const userAddress = typeof req.query.userAddress === 'string' ? req.query.userAddress.toLowerCase() : undefined;
   const query = userAddress ? { userAddress } : {};
 

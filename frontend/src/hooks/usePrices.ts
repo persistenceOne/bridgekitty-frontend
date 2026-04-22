@@ -6,7 +6,10 @@ export function usePrices(fromTokenSymbol: string, toTokenSymbol: string) {
 
   useEffect(() => {
     getTokenPrices().then(setPrices).catch(() => {});
-  }, [fromTokenSymbol, toTokenSymbol]);
+  // getTokenPrices fetches all token prices regardless of which tokens are selected.
+  // The 30s polling interval below keeps prices fresh; no need to re-fetch on token changes.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     const interval = setInterval(() => {

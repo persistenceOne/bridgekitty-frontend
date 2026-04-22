@@ -1,5 +1,6 @@
 import { type ChainKey, getToken } from '../lib/chains';
 import { formatUnits, parseUnits } from '../lib/amount';
+import { resolveApiBaseUrl } from '../lib/apiBaseUrl';
 
 const NULL_ADDRESS = '0x0000000000000000000000000000000000000000';
 
@@ -52,26 +53,6 @@ function parseAmountFromQuote(value: unknown, decimals: number): string {
   } catch {
     return '0';
   }
-}
-
-/**
- * Resolve the base URL for the backend API.
- * Priority: env var → localhost fallback when running dev.
- */
-function resolveApiBaseUrl(): string {
-  const fromEnv = import.meta.env.VITE_BRIDGEKITTY_API_BASE_URL;
-  if (fromEnv && fromEnv.trim().length > 0) {
-    return fromEnv.replace(/\/$/, '');
-  }
-
-  if (
-    typeof window !== 'undefined' &&
-    ['localhost', '127.0.0.1'].includes(window.location.hostname)
-  ) {
-    return 'http://localhost:8080/api';
-  }
-
-  return '';
 }
 
 function resolveQuoteUrl(provider: string): string {

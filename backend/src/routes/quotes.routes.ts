@@ -62,7 +62,7 @@ router.post('/quotes', quoteLimiter, async (req, res) => {
     const isClient = error instanceof Error && /missing|invalid|unsupported/i.test(msg);
     return res.status(isClient ? 400 : 502).json({
       error: isClient ? msg : `Quote request to ${provider} failed. Please try again.`,
-      detail: process.env.NODE_ENV === 'development' ? msg : undefined
+      detail: env.NODE_ENV === 'development' ? msg : undefined
     });
   }
 });
