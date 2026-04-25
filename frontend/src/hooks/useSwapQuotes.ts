@@ -1,20 +1,16 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { getSwapQuote, type QuoteResult } from '../services/quoteService';
+import { getAllSwapQuotes, QuoteFetchError, type QuoteResult } from '../services/quoteService';
 import { isValidSwapInput } from '../lib/swap';
 import { DEBOUNCE_MS, LIVE_PROVIDERS, QUOTE_REFRESH_INTERVAL_S } from '../constants';
 import type { ProviderKey, SwapDraft } from '../types';
 
-const RETRY_DELAY_MS = 3000;
-
 export function useSwapQuotes(activeWalletAddress: string | null) {
   const [quotes, setQuotes] = useState<Partial<Record<ProviderKey, QuoteResult | null>>>({});
-  const [quotingProviders, setQuotingProviders] = useState<Set<ProviderKey>>(new Set());
-  const [retryingProviders, setRetryingProviders] = useState<Set<ProviderKey>>(new Set());
+  const [isFetching, setIsFetching] = useState(false);
   const [selectedProvider, setSelectedProvider] = useState<ProviderKey | null>(null);
   const [quoteCountdown, setQuoteCountdown] = useState<number | null>(null);
 
   const debounceRef = useRef<ReturnType<typeof setTimeout>>();
-  const retryTimeoutRefs = useRef<Partial<Record<ProviderKey, ReturnType<typeof setTimeout>>>>({});
   const draftRef = useRef<SwapDraft | null>(null);
   const isExecutingRef = useRef(false);
 
@@ -22,19 +18,29 @@ export function useSwapQuotes(activeWalletAddress: string | null) {
   // discard results that belong to a superseded round.
   const roundRef = useRef(0);
 
-  // How many provider fetches (initial + retries) are still in-flight for the
-  // current round. Countdown starts when this reaches 0.
-  const pendingRef = useRef(0);
+  // AbortController for the currently in-flight round. When a new round
+  // starts we abort the previous controller so the old fetch is cancelled
+  // at the network layer — not just discarded client-side.
+  const roundAbortRef = useRef<AbortController | null>(null);
 
   // Signature of the last draft we fired a fetch for. Used by the amount-change
   // debounce effect to detect "amount was changed programmatically by a path
   // that already called triggerFetchImmediate" and skip the otherwise-duplicate
-  // debounced round. Without this, MAX / 50% / Fit gas / swap-direction each
-  // fire *two* quote rounds across all 4 providers, which both wastes upstream
-  // credit and trips Squid's 429 rate limiter.
+  // debounced round.
   const lastFetchedAmountRef = useRef<string | null>(null);
 
-  const isQuoting = quotingProviders.size > 0;
+  // Backwards-compat shim: SwapView reads `quotingProviders` (Set) and
+  // `retryingProviders` (Set) to drive per-row spinners. With the unified
+  // single-call model there's no per-provider quoting state — either we're
+  // mid-fetch (all providers "loading") or done. We expose a synthetic Set
+  // that contains every LIVE_PROVIDERS while `isFetching`, empty otherwise,
+  // so existing UI logic continues to work without changes.
+  const quotingProviders: Set<ProviderKey> = isFetching
+    ? new Set(LIVE_PROVIDERS)
+    : new Set();
+  const retryingProviders: Set<ProviderKey> = new Set();
+
+  const isQuoting = isFetching;
 
   const bestQuote = (() => {
     if (selectedProvider && quotes[selectedProvider]) return quotes[selectedProvider]!;
@@ -49,95 +55,62 @@ export function useSwapQuotes(activeWalletAddress: string | null) {
     if (!isValidSwapInput(currentDraft)) {
       setQuotes({});
       setSelectedProvider(null);
+      setIsFetching(false);
       return;
     }
 
-    // Safety: never request a quote without a wallet. Backend guards against
-    // zero-address recipients (Relay/LI.FI/Squid APIs can silently substitute
-    // a fallback wallet when recipient=0x0), so pre-connect quoting would 400.
-    // Show an empty quote panel and let the Connect button lead the UX instead.
     if (!activeWalletAddress) {
       setQuotes({});
       setSelectedProvider(null);
-      setQuotingProviders(new Set());
+      setIsFetching(false);
       return;
     }
 
-    // Cancel any pending retry timers from the previous round.
-    // Note: if a retry's async fetch is already in-flight, the round guard below
-    // will discard its result when it resolves.
-    Object.values(retryTimeoutRefs.current).forEach((t) => t && clearTimeout(t));
-    retryTimeoutRefs.current = {};
+    // Abort any in-flight fetch from the previous round at the network layer.
+    if (roundAbortRef.current) {
+      roundAbortRef.current.abort();
+    }
+    const controller = new AbortController();
+    roundAbortRef.current = controller;
+    const { signal } = controller;
 
-    // Bump the round so all in-flight ops from previous rounds become stale.
     const round = ++roundRef.current;
-
-    // Record what we're fetching for, so the subsequent draft.amount useEffect
-    // (which always fires when setDraft + triggerFetchImmediate are called
-    // together) sees a match and bails instead of firing a duplicate round.
     lastFetchedAmountRef.current = currentDraft.amount;
 
-    setQuotingProviders(new Set(LIVE_PROVIDERS));
-    setRetryingProviders(new Set());
+    setIsFetching(true);
     setQuoteCountdown(null);
 
     const walletAddr = activeWalletAddress;
-    pendingRef.current = LIVE_PROVIDERS.length;
 
-    LIVE_PROVIDERS.forEach(async (provider) => {
-      let initialDone = false;
+    try {
+      const { quotes: newQuotes, failed } = await getAllSwapQuotes(
+        { ...currentDraft, walletAddress: walletAddr },
+        signal
+      );
 
-      try {
-        const result = await getSwapQuote({ ...currentDraft, walletAddress: walletAddr }, provider);
+      if (roundRef.current !== round) return;
 
-        // Discard if a newer round has started
-        if (roundRef.current !== round) return;
-
-        setQuotes((prev) => ({ ...prev, [provider]: result }));
-        pendingRef.current--;
-        if (pendingRef.current === 0) setQuoteCountdown(QUOTE_REFRESH_INTERVAL_S);
-
-      } catch {
-        // Discard if stale
-        if (roundRef.current !== round) return;
-
-        setRetryingProviders((prev) => new Set(prev).add(provider));
-
-        retryTimeoutRefs.current[provider] = setTimeout(async () => {
-          // Check again — a new round may have started during the 3s wait
-          if (roundRef.current !== round) return;
-
-          setRetryingProviders((prev) => { const s = new Set(prev); s.delete(provider); return s; });
-          setQuotingProviders((prev) => new Set(prev).add(provider));
-
-          try {
-            const result = await getSwapQuote({ ...currentDraft, walletAddress: walletAddr }, provider);
-            if (roundRef.current !== round) return;
-            setQuotes((prev) => ({ ...prev, [provider]: result }));
-          } catch {
-            if (roundRef.current !== round) return;
-            // Both attempts failed — definitively no route for this draft
-            setQuotes((prev) => ({ ...prev, [provider]: null }));
-          }
-
-          // Cleanup for this provider's retry — only if still in our round
-          if (roundRef.current !== round) return;
-          setQuotingProviders((prev) => { const s = new Set(prev); s.delete(provider); return s; });
-          pendingRef.current--;
-          if (pendingRef.current === 0) setQuoteCountdown(QUOTE_REFRESH_INTERVAL_S);
-
-        }, RETRY_DELAY_MS);
-
-      } finally {
-        // Only clean up quotingProviders for our own round.
-        // Without this guard, a stale finally from a previous round would
-        // incorrectly remove the provider from the *new* round's quoting set.
-        if (roundRef.current === round && !initialDone) {
-          initialDone = true;
-          setQuotingProviders((prev) => { const s = new Set(prev); s.delete(provider); return s; });
-        }
+      // Replace state in one shot — winners get their QuoteResult, losers get
+      // null (so SwapView's existing `definitivelyFailed` filter hides them).
+      const next: Partial<Record<ProviderKey, QuoteResult | null>> = {};
+      for (const p of LIVE_PROVIDERS) {
+        const q = newQuotes[p];
+        if (q) next[p] = q;
+        else if (failed[p]) next[p] = null;
+        // If neither map contains it (shouldn't happen) leave undefined.
       }
-    });
+      setQuotes(next);
+      setIsFetching(false);
+      setQuoteCountdown(QUOTE_REFRESH_INTERVAL_S);
+    } catch (err) {
+      if (roundRef.current !== round) return;
+      // Aborts mean a newer round took over; do nothing.
+      if (err instanceof QuoteFetchError && err.isAbort) return;
+      // Any other failure: clear state. The 60s countdown isn't started — the
+      // next user action (or wallet event) will trigger a new round.
+      setQuotes({});
+      setIsFetching(false);
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeWalletAddress]);
 

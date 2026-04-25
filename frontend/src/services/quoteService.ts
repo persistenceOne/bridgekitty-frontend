@@ -15,13 +15,19 @@ export interface QuoteRequest {
 
 export interface QuoteResult {
   id: string;
-  provider: 'lifi-api' | 'debridge-api' | 'squid-api' | 'relay-api' | 'mock';
+  provider: 'lifi-api' | 'debridge-api' | 'squid-api' | 'relay-api' | 'across-api' | 'mock';
+  /** Persistence trackingId (e.g. "lifi:0xabc..." or "debridge:0xorderhash").
+   *  Passed as the `provider` param when polling /status so the backend can
+   *  forward it directly to the Persistence status endpoint. */
+  trackingId?: string;
   route: string;
   feeUsd: number;
-  /** Native fixed-fee component for deBridge DLN (the `fixFee` msg.value amount in USD).
-   *  Present and > 0 only for deBridge quotes. The route/spread fee is `feeUsd - fixFeeUsd`. */
+  /** deBridge-specific: the DLN solver fee in USD charged on top of the swap
+   *  (paid in the source chain's native token). Undefined for other providers. */
   fixFeeUsd?: number;
-  feePercent: number;
+  /** BridgeKitty's own fee in USD (Persistence integrator-fee pass-through).
+   *  Undefined when no integrator fee is configured upstream. */
+  integratorFeeUsd?: number;
   etaSeconds: number;
   destinationAmount: string;
   destinationAmountMin?: string;
@@ -55,45 +61,163 @@ function parseAmountFromQuote(value: unknown, decimals: number): string {
   }
 }
 
-function resolveQuoteUrl(provider: string): string {
+function resolveQuoteUrl(): string {
   const directProxy = import.meta.env.VITE_BRIDGEKITTY_QUOTE_PROXY_URL;
   if (directProxy && directProxy.trim().length > 0) {
-    return `${directProxy}?provider=${provider}`;
+    return directProxy;
   }
 
   const base = resolveApiBaseUrl();
   if (base) {
-    return `${base}/quotes?provider=${provider}`;
+    return `${base}/quotes`;
   }
 
   return '';
 }
 
-async function fetchQuoteFromBackend(payload: Record<string, unknown>, provider: string): Promise<unknown> {
-  const quoteUrl = resolveQuoteUrl(provider);
+/** Error thrown by getSwapQuote that carries the upstream HTTP status so the
+ *  caller (useSwapQuotes) can decide whether to retry. 4xx (especially 409
+ *  "already being executed") should never retry — the condition is not
+ *  transient and retrying just piles onto the upstream cache collision. */
+export class QuoteFetchError extends Error {
+  readonly status: number;
+  readonly isAbort: boolean;
+  constructor(message: string, status: number, isAbort = false) {
+    super(message);
+    this.name = 'QuoteFetchError';
+    this.status = status;
+    this.isAbort = isAbort;
+  }
+}
+
+async function fetchQuoteFromBackend(
+  payload: Record<string, unknown>,
+  signal?: AbortSignal
+): Promise<unknown> {
+  const quoteUrl = resolveQuoteUrl();
 
   if (!quoteUrl) {
-    throw new Error('Backend quote URL unavailable.');
+    throw new QuoteFetchError('Backend quote URL unavailable.', 0);
   }
 
-  const response = await fetch(quoteUrl, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload)
-  });
+  let response: Response;
+  try {
+    response = await fetch(quoteUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+      signal,
+    });
+  } catch (err) {
+    if (err instanceof DOMException && err.name === 'AbortError') {
+      throw new QuoteFetchError('Quote request aborted.', 0, true);
+    }
+    throw new QuoteFetchError(err instanceof Error ? err.message : String(err), 0);
+  }
 
   if (!response.ok) {
     const errorText = await response.text();
-    throw new Error(errorText || `Quote proxy returned ${response.status}`);
+    throw new QuoteFetchError(
+      errorText || `Quote proxy returned ${response.status}`,
+      response.status
+    );
   }
 
   return response.json();
 }
 
-export async function getSwapQuote(
+type ProviderKey = 'lifi' | 'debridge' | 'squid' | 'relay' | 'across';
+
+interface BackendQuoteShape {
+  id: string;
+  trackingId?: string;
+  routeSteps?: Array<{ type?: string }>;
+  feeUsd?: string;
+  fixFeeUsd?: string;
+  integratorFeeUsd?: string;
+  duration?: { estimated?: string | null };
+  dstAmount?: string;
+  dstAmountMin?: string;
+  userSteps?: Array<{
+    type?: string;
+    transaction?: {
+      to?: string;
+      data?: string;
+      value?: string;
+      gas?: string;
+      gasLimit?: string;
+      gasPrice?: string;
+      maxFeePerGas?: string;
+      maxPriorityFeePerGas?: string;
+    };
+  }>;
+}
+
+const PROVIDER_API_KEY: Record<ProviderKey, QuoteResult['provider']> = {
+  lifi: 'lifi-api',
+  debridge: 'debridge-api',
+  squid: 'squid-api',
+  relay: 'relay-api',
+  across: 'across-api',
+};
+
+function normalizeBackendQuote(
+  raw: BackendQuoteShape,
+  provider: ProviderKey,
+  toTokenDecimals: number
+): QuoteResult {
+  const route = raw.routeSteps?.map((s) => s.type).filter(Boolean).join(' + ') ?? provider.toUpperCase();
+  const etaMs = numberFromUnknown(raw.duration?.estimated, 90000);
+  const rawTx = raw.userSteps?.find((s) => s.type === 'TRANSACTION')?.transaction;
+  const transactionRequest = rawTx
+    ? {
+        to: rawTx.to,
+        data: rawTx.data,
+        value: rawTx.value,
+        gasLimit: rawTx.gasLimit ?? rawTx.gas,
+        gasPrice: rawTx.gasPrice,
+        maxFeePerGas: rawTx.maxFeePerGas,
+        maxPriorityFeePerGas: rawTx.maxPriorityFeePerGas,
+      }
+    : undefined;
+
+  const fixFeeUsdRaw = numberFromUnknown(raw.fixFeeUsd, 0);
+  const integratorFeeUsdRaw = numberFromUnknown(raw.integratorFeeUsd, 0);
+
+  return {
+    id: raw.id,
+    provider: PROVIDER_API_KEY[provider],
+    trackingId: raw.trackingId,
+    route,
+    feeUsd: numberFromUnknown(raw.feeUsd, 0),
+    fixFeeUsd: fixFeeUsdRaw > 0 ? fixFeeUsdRaw : undefined,
+    integratorFeeUsd: integratorFeeUsdRaw > 0 ? integratorFeeUsdRaw : undefined,
+    etaSeconds: Math.max(15, Math.round(etaMs / 1000)),
+    destinationAmount: parseAmountFromQuote(raw.dstAmount, toTokenDecimals),
+    destinationAmountMin: parseAmountFromQuote(raw.dstAmountMin, toTokenDecimals),
+    transactionRequest,
+    raw,
+  };
+}
+
+export interface AllQuotesResult {
+  quotes: Partial<Record<ProviderKey, QuoteResult>>;
+  failed: Partial<Record<ProviderKey, string>>;
+}
+
+/**
+ * Fetch quotes from every supported provider in a single backend call.
+ *
+ * The backend hits Persistence's `/quote` once and runs `/execute` per
+ * provider in parallel — so this single HTTP round-trip returns whatever
+ * subset of {LI.FI, Squid, deBridge, Relay, Across} actually has a route
+ * for the requested pair, with the failed ones listed in `failed` so the
+ * UI can decide what to show.
+ */
+export async function getAllSwapQuotes(
   request: QuoteRequest,
-  provider: 'lifi' | 'debridge' | 'squid' | 'relay' = 'lifi'
-): Promise<QuoteResult> {
+  signal?: AbortSignal
+): Promise<AllQuotesResult> {
   if (request.fromChain === request.toChain && request.fromTokenSymbol === request.toTokenSymbol) {
     throw new Error('Source and destination tokens must be different for a same-chain swap.');
   }
@@ -116,89 +240,24 @@ export async function getSwapQuote(
     srcWalletAddress: wallet,
     dstWalletAddress: wallet,
     amount: amountInUnits,
-    options: {
-      amountType: 'EXACT_SRC_AMOUNT',
-      feeTolerance: {
-        type: 'PERCENT',
-        amount: 2
-      }
-    }
   };
 
-  try {
-    const data = (await fetchQuoteFromBackend(payload, provider)) as {
-      provider?: 'lifi' | 'debridge' | 'squid' | 'relay';
-      fallbackUsed?: boolean;
-      fallbackFrom?: string;
-      warnings?: string[];
-      quotes?: Array<{
-        id: string;
-        provider?: 'lifi' | 'debridge' | 'squid' | 'relay';
-        routeSteps?: Array<{ type?: string }>;
-        feeUsd?: string;
-        fixFeeUsd?: string;
-        feePercent?: string;
-        duration?: { estimated?: string | null };
-        dstAmount?: string;
-        dstAmountMin?: string;
-        userSteps?: Array<{
-          type?: string;
-          transaction?: {
-            to?: string;
-            data?: string;
-            value?: string;
-            gas?: string;
-            gasLimit?: string;
-            gasPrice?: string;
-            maxFeePerGas?: string;
-            maxPriorityFeePerGas?: string;
-          };
-        }>;
-      }>;
-    };
+  const data = (await fetchQuoteFromBackend(payload, signal)) as {
+    quotes?: Partial<Record<ProviderKey, BackendQuoteShape>>;
+    failed?: Partial<Record<ProviderKey, string>>;
+  };
 
-    const quote = data.quotes?.[0];
-    if (!quote) {
-      throw new Error('No quote available for this route yet.');
+  const quotes: Partial<Record<ProviderKey, QuoteResult>> = {};
+  for (const [provider, rawQuote] of Object.entries(data.quotes ?? {})) {
+    if (rawQuote) {
+      quotes[provider as ProviderKey] = normalizeBackendQuote(
+        rawQuote,
+        provider as ProviderKey,
+        toToken.decimals
+      );
     }
-
-    const route = quote.routeSteps?.map((step) => step.type).filter(Boolean).join(' + ') ?? 'LI.FI';
-
-    const etaMilliseconds = numberFromUnknown(quote.duration?.estimated, 90000);
-
-    const fallbackWarning = data.fallbackUsed
-      ? `Fallback used (${data.fallbackFrom ?? 'unknown'}).`
-      : undefined;
-    const detailsWarning = data.warnings?.length ? data.warnings.join(' | ') : undefined;
-    const combinedWarning = [fallbackWarning, detailsWarning].filter(Boolean).join(' ');
-    const rawTx = quote.userSteps?.find((step) => step.type === 'TRANSACTION')?.transaction;
-    const transactionRequest = rawTx ? {
-      to: rawTx.to,
-      data: rawTx.data,
-      value: rawTx.value,
-      gasLimit: rawTx.gasLimit ?? rawTx.gas,
-      gasPrice: rawTx.gasPrice,
-      maxFeePerGas: rawTx.maxFeePerGas,
-      maxPriorityFeePerGas: rawTx.maxPriorityFeePerGas,
-    } : undefined;
-
-    const rawFixFee = numberFromUnknown(quote.fixFeeUsd, 0);
-    return {
-      id: quote.id,
-      provider: provider === 'debridge' ? 'debridge-api' : provider === 'squid' ? 'squid-api' : provider === 'relay' ? 'relay-api' : 'lifi-api',
-      route,
-      feeUsd: numberFromUnknown(quote.feeUsd, 0),
-      fixFeeUsd: rawFixFee > 0 ? rawFixFee : undefined,
-      feePercent: numberFromUnknown(quote.feePercent, 0),
-      etaSeconds: Math.max(15, Math.round(etaMilliseconds / 1000)),
-      destinationAmount: parseAmountFromQuote(quote.dstAmount, toToken.decimals),
-      destinationAmountMin: parseAmountFromQuote(quote.dstAmountMin, toToken.decimals),
-      transactionRequest,
-      warning: combinedWarning || undefined,
-      raw: quote
-    };
-  } catch (error) {
-    throw error instanceof Error ? error : new Error('Failed to fetch quote.');
   }
+
+  return { quotes, failed: data.failed ?? {} };
 }
 

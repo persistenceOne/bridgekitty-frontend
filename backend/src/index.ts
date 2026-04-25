@@ -3,7 +3,6 @@ import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import { env } from './config/env.js';
-import { connectDatabase } from './config/db.js';
 import routes from './routes/index.js';
 
 const app = express();
@@ -11,7 +10,7 @@ const app = express();
 app.use(
   cors({
     origin: env.CORS_ORIGIN,
-    credentials: true
+    credentials: true,
   })
 );
 app.use(helmet());
@@ -26,19 +25,11 @@ app.use((error: unknown, _req: express.Request, res: express.Response, _next: ex
   }
 
   res.status(500).json({
-    error: 'Internal server error'
+    error: 'Internal server error',
   });
 });
 
-async function bootstrap() {
-  await connectDatabase();
-
-  app.listen(env.PORT, () => {
-    console.log(`[api] BridgeKitty backend listening on port ${env.PORT}`);
-  });
-}
-
-bootstrap().catch((error) => {
-  console.error('[api] Failed to start backend', error);
-  process.exit(1);
+app.listen(env.PORT, () => {
+  console.log(`[api] BridgeKitty backend listening on port ${env.PORT}`);
+  console.log(`[api] Upstream: ${env.PERSISTENCE_API_BASE_URL}`);
 });

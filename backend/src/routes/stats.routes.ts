@@ -1,55 +1,46 @@
 import { Router } from 'express';
-import { TransactionHistory } from '../models/TransactionHistory.js';
-import { isDatabaseReady } from '../config/db.js';
+import { persistenceRequest } from '../lib/persistence.js';
 
 const router = Router();
 
-function periodToDays(period: string): number | null {
-  if (period === 'all') return null; // no date filter → lifetime
-  if (period === '15d') return 15;
-  if (period === '30d') return 30;
-  return 7; // default 7d
-}
+const VALID_PERIODS = new Set(['7d', '15d', '30d', 'all']);
 
 router.get('/stats', async (req, res) => {
-  if (!isDatabaseReady()) {
+  const periodRaw = typeof req.query.period === 'string' ? req.query.period : '7d';
+  const period = VALID_PERIODS.has(periodRaw) ? periodRaw : '7d';
+
+  try {
+    const result = await persistenceRequest<{
+      period: string;
+      uniqueUsers: number;
+      swapVolumeUsd: number;
+      swapCount: number;
+    }>({
+      method: 'GET',
+      path: '/stats',
+      query: { period },
+    });
+
+    if (!result.ok || !result.data) {
+      // Fail soft — landing/stats views render zeros when the upstream is down
+      // rather than throwing a surface error that breaks the page.
+      return res.json({
+        period,
+        uniqueUsers: 0,
+        swapVolumeUsd: 0,
+        swapCount: 0,
+      });
+    }
+
+    return res.json(result.data);
+  } catch {
     return res.json({
-      period: req.query.period ?? '7d',
+      period,
       uniqueUsers: 0,
       swapVolumeUsd: 0,
       swapCount: 0,
     });
   }
-
-  const period = typeof req.query.period === 'string' ? req.query.period : '7d';
-  const days = periodToDays(period);
-  const dateFilter = days != null
-    ? { createdAt: { $gte: new Date(Date.now() - days * 24 * 60 * 60 * 1000) } }
-    : {};
-
-  const [swapStats, uniqueUsers] = await Promise.all([
-    TransactionHistory.aggregate([
-      { $match: dateFilter },
-      {
-        $group: {
-          _id: null,
-          totalVolumeUsd: { $sum: { $ifNull: ['$volumeUsd', 0] } },
-          count: { $sum: 1 },
-        },
-      },
-    ]),
-    TransactionHistory.distinct('userAddress', dateFilter),
-  ]);
-
-  const swapVolumeUsd = swapStats[0]?.totalVolumeUsd ?? 0;
-  const swapCount = swapStats[0]?.count ?? 0;
-
-  return res.json({
-    period,
-    uniqueUsers: uniqueUsers.length,
-    swapVolumeUsd: Math.round(swapVolumeUsd * 100) / 100,
-    swapCount,
-  });
 });
 
 export default router;

@@ -1,6 +1,8 @@
 import { resolveApiBaseUrl } from '../lib/apiBaseUrl';
 
 export interface UserTransactionRecord {
+  /** Persistence uses `id`; legacy Mongo-era records may carry `_id`. */
+  id?: string;
   _id?: string;
   userAddress: string;
   txHash: string;
@@ -11,6 +13,7 @@ export interface UserTransactionRecord {
   fromTokenSymbol: string;
   toTokenSymbol: string;
   amount: string;
+  volumeUsd?: number;
   status?: string;
   metadata?: unknown;
   createdAt?: string;

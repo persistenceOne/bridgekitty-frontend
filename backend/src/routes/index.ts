@@ -6,6 +6,8 @@ import transactionsRoutes from './transactions.routes.js';
 import walletsRoutes from './wallets.routes.js';
 import statusRoutes from './status.routes.js';
 import statsRoutes from './stats.routes.js';
+import chainsRoutes from './chains.routes.js';
+import tokensRoutes from './tokens.routes.js';
 
 const router = Router();
 
@@ -16,5 +18,7 @@ router.use('/', transactionsRoutes);
 router.use('/', walletsRoutes);
 router.use('/', statusRoutes);
 router.use('/', statsRoutes);
+router.use('/', chainsRoutes);
+router.use('/', tokensRoutes);
 
 export default router;

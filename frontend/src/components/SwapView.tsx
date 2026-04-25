@@ -11,7 +11,7 @@ import { computeUsdValue } from '../services/priceService';
 import { isNativeToken } from '../lib/erc20';
 import { isValidSwapInput, makeBalanceKey, getDifferentToken, resolveToken } from '../lib/swap';
 import {
-  BLOCK_EXPLORER, BRIDGEKITTY_FEE_PERCENT, LIVE_PROVIDERS, PROVIDER_META,
+  BLOCK_EXPLORER, LIVE_PROVIDERS, PROVIDER_META,
   QUOTE_REFRESH_INTERVAL_S, TX_STAGES
 } from '../constants';
 import type { ProviderKey, SwapDraft, TxStatus, TxStage } from '../types';
@@ -329,8 +329,8 @@ export function SwapView({
   }, [quotes]);
 
   const sortedRoutes = useMemo(() => [...PROVIDER_META]
-    .map(({ key, label, logo }) => ({
-      key, label, logo,
+    .map(({ key, label, logo }, idx) => ({
+      key, label, logo, idx,
       pQuote: quotes[key],
       pLoading: quotingProviders.has(key) || retryingProviders.has(key),
       definitivelyFailed: !(quotingProviders.has(key) || retryingProviders.has(key)) && key in quotes && quotes[key] === null,
@@ -340,10 +340,16 @@ export function SwapView({
       const bIsBest = objectivelyBestId != null && b.pQuote?.id === objectivelyBestId;
       if (aIsBest) return -1;
       if (bIsBest) return 1;
-      // Non-best routes: lowest fee first
-      return (a.pQuote?.feeUsd ?? Infinity) - (b.pQuote?.feeUsd ?? Infinity);
+      // Both have quotes: lowest fee first.
+      if (a.pQuote && b.pQuote) return a.pQuote.feeUsd - b.pQuote.feeUsd;
+      // Quoted beats not-yet-quoted (skeletons sink to the bottom).
+      if (a.pQuote && !b.pQuote) return -1;
+      if (!a.pQuote && b.pQuote) return 1;
+      // Both still loading: keep PROVIDER_META order so the skeleton rows
+      // don't visually shuffle as quotes trickle in.
+      return a.idx - b.idx;
     })
-  , [quotes, quotingProviders, objectivelyBestId]);
+  , [quotes, quotingProviders, retryingProviders, objectivelyBestId]);
 
   return (
     <motion.div
@@ -385,6 +391,7 @@ export function SwapView({
             <img src="/providers/squid.ico" alt="Squid" className="hf-swap-powered-logo" />
             <img src="/providers/debridge.png" alt="deBridge" className="hf-swap-powered-logo" />
             <img src="/providers/relay.png" alt="Relay" className="hf-swap-powered-logo" />
+            <img src="/providers/across.png" alt="Across" className="hf-swap-powered-logo" />
           </div>
 
           {/* Quote Refresh Countdown */}
@@ -758,7 +765,11 @@ export function SwapView({
                   </div>
                 ) : (
                   sortedRoutes.map(({ key, label, logo, pQuote, pLoading, definitivelyFailed }) => {
-                    if (definitivelyFailed || (!pQuote && !pLoading)) return null;
+                    // Single-call model: only providers with an actual quote are
+                    // rendered. Failed providers (no route for this pair) are
+                    // dropped — no skeleton-then-disappear flicker.
+                    if (definitivelyFailed) return null;
+                    if (!pQuote && !pLoading) return null;
                     const isBest = objectivelyBestId != null && pQuote?.id === objectivelyBestId;
                     const isSelected = selectedProvider === key;
                     // Allow selection whenever a quote is displayed. Previously
@@ -818,9 +829,17 @@ export function SwapView({
                           {isExpanded && pQuote && (
                             <motion.div
                               className="hf-route-detail"
-                              initial={{ opacity: 0, height: 0 }}
-                              animate={{ opacity: 1, height: 'auto' }}
-                              exit={{ opacity: 0, height: 0 }}
+                              initial={{ opacity: 0, height: 0, overflow: 'hidden' }}
+                              animate={{
+                                opacity: 1,
+                                height: 'auto',
+                                // Only clip during the height transition. Once
+                                // open, switch to overflow:visible so the
+                                // info-icon tooltip can pop above the drawer
+                                // without getting cut off.
+                                transitionEnd: { overflow: 'visible' },
+                              }}
+                              exit={{ opacity: 0, height: 0, overflow: 'hidden' }}
                               transition={{ duration: 0.2, ease: 'easeInOut' }}
                             >
                               <div className="hf-route-detail-rows">
@@ -851,7 +870,7 @@ export function SwapView({
                                 ) : (
                                   <div className="hf-route-detail-row">
                                     <span>Fee</span>
-                                    <span>{formatUsd(pQuote.feeUsd)} ({pQuote.feePercent > 0 ? `${pQuote.feePercent.toFixed(2)}%` : '<0.01%'})</span>
+                                    <span>{formatUsd(pQuote.feeUsd)}</span>
                                   </div>
                                 )}
                                 {pQuote.destinationAmountMin && (
@@ -904,14 +923,11 @@ export function SwapView({
                   )}
                   <div className="hf-fee-row">
                     <span className="hf-fee-label">BridgeKitty fee</span>
-                    {(() => {
-                      const feePct = BRIDGEKITTY_FEE_PERCENT[bestQuote.provider as keyof typeof BRIDGEKITTY_FEE_PERCENT];
-                      return feePct != null ? (
-                        <span className="hf-fee-value">{feePct.toFixed(2)}%</span>
-                      ) : (
-                        <span className="hf-fee-value hf-fee-free">Free <Check size={10} strokeWidth={3} /></span>
-                      );
-                    })()}
+                    {bestQuote.integratorFeeUsd != null && bestQuote.integratorFeeUsd > 0 ? (
+                      <span className="hf-fee-value">{formatUsd(bestQuote.integratorFeeUsd)}</span>
+                    ) : (
+                      <span className="hf-fee-value hf-fee-free">Free <Check size={10} strokeWidth={3} /></span>
+                    )}
                   </div>
                   <div className="hf-fee-row">
                     <span className="hf-fee-label">Min. received</span>

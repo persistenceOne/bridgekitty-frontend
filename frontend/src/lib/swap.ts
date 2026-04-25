@@ -45,6 +45,7 @@ export function isValidSwapInput(draft: SwapDraft): boolean {
 }
 
 const ETH_ADDRESS_RE = /^0x[0-9a-fA-F]{40}$/;
+const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000';
 
 /**
  * Validates that a transaction request from an external API has safe fields
@@ -57,6 +58,11 @@ export function validateTransactionRequest(tx: {
 }): string | null {
   if (!tx.to || !ETH_ADDRESS_RE.test(tx.to)) {
     return 'Invalid transaction target address.';
+  }
+  // Refuse to sign a burn: a quote whose `to` is the zero address would
+  // destroy any `value` included. Only possible if upstream is broken.
+  if (tx.to.toLowerCase() === ZERO_ADDRESS) {
+    return 'Invalid transaction target address (zero address).';
   }
   if (!tx.data || tx.data.length < 10) {
     return 'Transaction data is missing or malformed.';

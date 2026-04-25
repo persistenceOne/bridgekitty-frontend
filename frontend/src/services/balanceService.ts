@@ -15,10 +15,19 @@ const ALCHEMY_CHAIN_SUBDOMAIN: Partial<Record<ChainKey, string>> = {
   polygon: 'polygon-mainnet'
 };
 
-// BSC and Monad are NOT supported by Alchemy — use public RPCs as fallback
+// BSC and Monad are NOT supported by Alchemy — use public RPCs as fallback.
+// Ordered fastest-to-slowest; we iterate on failure.
+// Note: binance.llamarpc.com was removed — the hostname returns NXDOMAIN as of 2026.
 const FALLBACK_RPC_BY_CHAIN: Partial<Record<ChainKey, string[]>> = {
-  bsc: ['https://binance.llamarpc.com', 'https://bsc-rpc.publicnode.com'],
-  monad: ['https://rpc.monad.xyz', 'https://monad-mainnet.drpc.org']
+  bsc: [
+    'https://bsc-rpc.publicnode.com',
+    'https://bsc.drpc.org',
+    'https://bsc-dataseed.binance.org'
+  ],
+  monad: [
+    'https://rpc.monad.xyz',
+    'https://monad-mainnet.drpc.org'
+  ]
 };
 
 function getAlchemyApiKey(): string | undefined {
@@ -227,23 +236,35 @@ export async function fetchTokenBalancesForChain(
     }
   }
 
-  const fallbackRpcs = FALLBACK_RPC_BY_CHAIN[chainKey];
-  const rpcUrl = fallbackRpcs?.[0];
-  if (!rpcUrl) {
-    // No RPC available — try Alchemy-supported chain RPCs as last resort
-    const publicRpcs: Record<string, string> = {
-      ethereum: 'https://eth.llamarpc.com',
-      base: 'https://base.llamarpc.com',
-      polygon: 'https://polygon.llamarpc.com'
-    };
-    const lastResort = publicRpcs[chainKey];
-    if (lastResort) {
-      return fetchBalancesViaRpc(lastResort, walletAddress, tokens);
+  // Build the candidate RPC list: explicit fallbacks first, then the
+  // Alchemy-supported chain's public RPC as a last resort.
+  const publicRpcs: Partial<Record<ChainKey, string>> = {
+    ethereum: 'https://eth.llamarpc.com',
+    base:     'https://base.llamarpc.com',
+    polygon:  'https://polygon.llamarpc.com'
+  };
+
+  const candidates = [
+    ...(FALLBACK_RPC_BY_CHAIN[chainKey] ?? []),
+    ...(publicRpcs[chainKey] ? [publicRpcs[chainKey]!] : [])
+  ];
+
+  // Try each candidate in order. A candidate "succeeds" if it returns at
+  // least one balance — `fetchBalancesViaRpc` swallows per-token errors, so
+  // we also treat a fully-empty result after a non-empty token list as a
+  // silent failure and try the next RPC.
+  for (const rpcUrl of candidates) {
+    try {
+      const balances = await fetchBalancesViaRpc(rpcUrl, walletAddress, tokens);
+      if (tokens.length === 0 || Object.keys(balances).length > 0) {
+        return balances;
+      }
+    } catch {
+      // fall through to next candidate
     }
-    return {};
   }
 
-  return fetchBalancesViaRpc(rpcUrl, walletAddress, tokens);
+  return {};
 }
 
 /**

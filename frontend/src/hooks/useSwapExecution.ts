@@ -186,7 +186,9 @@ export function useSwapExecution(
         params: [txParams]
       })) as string;
 
-      startStatusPolling(txHash, bestQuote.provider, draft.fromChain, draft.toChain);
+      // Use the Persistence trackingId (e.g. "lifi:0xhash", "debridge:0xorderhash")
+      // as the polling key — the backend status route forwards it directly to Persistence.
+      startStatusPolling(txHash, bestQuote.trackingId ?? bestQuote.provider, draft.fromChain, draft.toChain);
       await recordSwap(txHash, walletBridge.address, bestQuote.id, draft, bestQuote.provider, volumeUsd);
 
       onPostSwap();
