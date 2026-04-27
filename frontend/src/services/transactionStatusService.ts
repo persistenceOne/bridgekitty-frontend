@@ -1,41 +1,76 @@
 import type { ChainKey } from '../lib/chains';
+import { CHAIN_BY_KEY } from '../lib/chains';
 import { resolveApiBaseUrl } from '../lib/apiBaseUrl';
 
 export type TxStage = 'submitted' | 'confirming' | 'bridging' | 'completed' | 'failed' | 'pending';
 
 export interface TxStatusResult {
   status: TxStage;
-  substatus?: string;         // Human-readable message (may come straight from LI.FI)
-  substatusCode?: string;     // Raw LI.FI enum (e.g. WAIT_SOURCE_CONFIRMATIONS)
+  substatus?: string;         // Human-readable message
+  substatusCode?: string;     // Reserved for upstream enum codes (kept for UI compat)
   sendingTxHash?: string;     // Source-chain tx
   receivingTxHash?: string;   // Destination-chain tx (cross-chain only, appears late)
-  explorerLink?: string;      // Best explorer link (destination tx if available, else LI.FI)
-  lifiExplorerLink?: string;  // LI.FI cross-chain explorer
+  explorerLink?: string;      // Best explorer link (destination tx if available)
+  lifiExplorerLink?: string;  // LI.FI cross-chain explorer (kept for UI compat)
+}
+
+/** bridgekitty-backend `/status` response shape. */
+interface BackendStatus {
+  state: 'pending' | 'in_progress' | 'completed' | 'failed' | 'refunded' | 'unknown';
+  humanReadable: string;
+  sourceTxHash?: string;
+  destTxHash?: string;
+  provider: string;
+  elapsed: number;
+  estimatedRemaining?: number;
+}
+
+function mapState(state: BackendStatus['state']): TxStage {
+  switch (state) {
+    case 'pending': return 'pending';
+    case 'in_progress': return 'bridging';
+    case 'completed': return 'completed';
+    case 'failed':
+    case 'refunded':
+      return 'failed';
+    case 'unknown':
+    default:
+      return 'confirming';
+  }
 }
 
 export async function fetchTransactionStatus(
   txHash: string,
-  provider: string,
+  trackingId: string,
   fromChain: ChainKey,
   toChain?: ChainKey
 ): Promise<TxStatusResult> {
   const base = resolveApiBaseUrl();
-  if (!base) {
-    throw new Error('Backend API URL unavailable.');
-  }
+  if (!base) throw new Error('Backend API URL unavailable.');
 
-  const params = new URLSearchParams({ txHash, provider, fromChain });
-  // Per LI.FI docs, same-chain swaps require toChain == fromChain, else
-  // NOT_FOUND. Default to fromChain when the caller doesn't specify.
-  params.set('toChain', toChain ?? fromChain);
-  const response = await fetch(`${base}/status?${params.toString()}`);
+  const fromChainId = CHAIN_BY_KEY[fromChain]?.chainId;
+  const toChainId = CHAIN_BY_KEY[toChain ?? fromChain]?.chainId;
 
+  const params = new URLSearchParams();
+  if (txHash) params.set('txHash', txHash);
+  if (fromChainId) params.set('fromChain', String(fromChainId));
+  if (toChainId) params.set('toChain', String(toChainId));
+
+  const url = `${base}/status/${encodeURIComponent(trackingId)}?${params.toString()}`;
+  const response = await fetch(url);
   if (!response.ok) {
     const text = await response.text();
     throw new Error(text || `Status check failed (${response.status}).`);
   }
 
-  return response.json() as Promise<TxStatusResult>;
+  const data = (await response.json()) as BackendStatus;
+
+  return {
+    status: mapState(data.state),
+    substatus: data.humanReadable,
+    sendingTxHash: data.sourceTxHash ?? txHash,
+    receivingTxHash: data.destTxHash,
+  };
 }
 
 const STAGE_PROGRESS: Record<TxStage, number> = {
@@ -55,13 +90,13 @@ export function stageToProgress(stage: TxStage): number {
 
 /**
  * Poll transaction status until a terminal state is reached.
- * Calls onUpdate with each new status. Returns the final status.
+ * Calls onUpdate with each new status. Returns a stop handle.
  *
- * For LI.FI, toChain MUST be supplied (same-chain swaps require fromChain === toChain).
+ * `trackingId` is what `/execute` returned (e.g. "lifi:0xhash", "debridge:0xorder").
  */
 export function pollTransactionStatus(
   txHash: string,
-  provider: string,
+  trackingId: string,
   fromChain: ChainKey,
   onUpdate: (result: TxStatusResult) => void,
   toChain?: ChainKey,
@@ -78,7 +113,7 @@ export function pollTransactionStatus(
     attempts++;
 
     try {
-      const result = await fetchTransactionStatus(txHash, provider, fromChain, toChain);
+      const result = await fetchTransactionStatus(txHash, trackingId, fromChain, toChain);
       if (stopped) return;
       consecutiveErrors = 0;
       onUpdate(result);
@@ -88,8 +123,6 @@ export function pollTransactionStatus(
       }
     } catch (err) {
       consecutiveErrors++;
-      // If the status endpoint has been unreachable for several attempts
-      // in a row, surface it as a failure so the user isn't left waiting.
       if (consecutiveErrors >= 6 && !stopped) {
         onUpdate({
           status: 'failed',
@@ -104,7 +137,6 @@ export function pollTransactionStatus(
     if (attempts < maxAttempts && !stopped) {
       timeoutId = setTimeout(poll, intervalMs);
     } else if (attempts >= maxAttempts && !stopped) {
-      // Hit the 10-minute wall without a terminal state.
       onUpdate({
         status: 'failed',
         substatus: 'Timed out waiting for confirmation. Check the explorer link for the latest state.'
