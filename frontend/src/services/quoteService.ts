@@ -1,4 +1,4 @@
-import { type ChainKey, getToken } from '../lib/chains';
+import { type ChainKey, CHAIN_BY_KEY, getToken } from '../lib/chains';
 import { formatUnits, parseUnits } from '../lib/amount';
 import { resolveApiBaseUrl } from '../lib/apiBaseUrl';
 
@@ -16,21 +16,20 @@ export interface QuoteRequest {
 export interface QuoteResult {
   id: string;
   provider: 'lifi-api' | 'debridge-api' | 'squid-api' | 'relay-api' | 'across-api' | 'mock';
-  /** Persistence trackingId (e.g. "lifi:0xabc..." or "debridge:0xorderhash").
-   *  Passed as the `provider` param when polling /status so the backend can
-   *  forward it directly to the Persistence status endpoint. */
+  /** bridgekitty-backend trackingId returned from /execute (e.g. "lifi:0xabc...").
+   *  Populated by `executeQuote()`; undefined on the bare quote returned from /quote. */
   trackingId?: string;
   route: string;
   feeUsd: number;
-  /** deBridge-specific: the DLN solver fee in USD charged on top of the swap
-   *  (paid in the source chain's native token). Undefined for other providers. */
+  /** deBridge-specific: native-token protocol fee (fixFee) converted to USD. */
   fixFeeUsd?: number;
-  /** BridgeKitty's own fee in USD (Persistence integrator-fee pass-through).
-   *  Undefined when no integrator fee is configured upstream. */
+  /** Integrator fee (BridgeKitty's own fee), undefined when not configured upstream. */
   integratorFeeUsd?: number;
   etaSeconds: number;
   destinationAmount: string;
   destinationAmountMin?: string;
+  /** Only populated AFTER `executeQuote(id)` has been called. The /quote endpoint
+   *  no longer returns the raw transaction — the user must select a quote first. */
   transactionRequest?: {
     to?: string;
     data?: string;
@@ -44,16 +43,28 @@ export interface QuoteResult {
   raw?: unknown;
 }
 
-function numberFromUnknown(value: unknown, fallback: number): number {
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : fallback;
+type ProviderKey = 'lifi' | 'debridge' | 'squid' | 'relay' | 'across';
+
+const PROVIDER_API_KEY: Record<ProviderKey, QuoteResult['provider']> = {
+  lifi: 'lifi-api',
+  debridge: 'debridge-api',
+  squid: 'squid-api',
+  relay: 'relay-api',
+  across: 'across-api',
+};
+
+function normalizeBackendName(name: string): ProviderKey | null {
+  const lower = name.toLowerCase();
+  if (lower.startsWith('lifi')) return 'lifi';
+  if (lower.startsWith('debridge')) return 'debridge';
+  if (lower.startsWith('squid')) return 'squid';
+  if (lower.startsWith('relay')) return 'relay';
+  if (lower.startsWith('across')) return 'across';
+  return null;
 }
 
 function parseAmountFromQuote(value: unknown, decimals: number): string {
-  if (typeof value !== 'string') {
-    return '0';
-  }
-
+  if (typeof value !== 'string') return '0';
   try {
     return formatUnits(BigInt(value), decimals, 6);
   } catch {
@@ -61,24 +72,7 @@ function parseAmountFromQuote(value: unknown, decimals: number): string {
   }
 }
 
-function resolveQuoteUrl(): string {
-  const directProxy = import.meta.env.VITE_BRIDGEKITTY_QUOTE_PROXY_URL;
-  if (directProxy && directProxy.trim().length > 0) {
-    return directProxy;
-  }
-
-  const base = resolveApiBaseUrl();
-  if (base) {
-    return `${base}/quotes`;
-  }
-
-  return '';
-}
-
-/** Error thrown by getSwapQuote that carries the upstream HTTP status so the
- *  caller (useSwapQuotes) can decide whether to retry. 4xx (especially 409
- *  "already being executed") should never retry — the condition is not
- *  transient and retrying just piles onto the upstream cache collision. */
+/** Error thrown by quote/execute calls that carries the upstream HTTP status. */
 export class QuoteFetchError extends Error {
   readonly status: number;
   readonly isAbort: boolean;
@@ -90,19 +84,14 @@ export class QuoteFetchError extends Error {
   }
 }
 
-async function fetchQuoteFromBackend(
+async function postJson<T>(
+  url: string,
   payload: Record<string, unknown>,
   signal?: AbortSignal
-): Promise<unknown> {
-  const quoteUrl = resolveQuoteUrl();
-
-  if (!quoteUrl) {
-    throw new QuoteFetchError('Backend quote URL unavailable.', 0);
-  }
-
+): Promise<T> {
   let response: Response;
   try {
-    response = await fetch(quoteUrl, {
+    response = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
@@ -118,85 +107,69 @@ async function fetchQuoteFromBackend(
   if (!response.ok) {
     const errorText = await response.text();
     throw new QuoteFetchError(
-      errorText || `Quote proxy returned ${response.status}`,
+      errorText || `Request failed (${response.status})`,
       response.status
     );
   }
 
-  return response.json();
+  return response.json() as Promise<T>;
 }
 
-type ProviderKey = 'lifi' | 'debridge' | 'squid' | 'relay' | 'across';
-
-interface BackendQuoteShape {
-  id: string;
-  trackingId?: string;
-  routeSteps?: Array<{ type?: string }>;
-  feeUsd?: string;
-  fixFeeUsd?: string;
-  integratorFeeUsd?: string;
-  duration?: { estimated?: string | null };
-  dstAmount?: string;
-  dstAmountMin?: string;
-  userSteps?: Array<{
-    type?: string;
-    transaction?: {
-      to?: string;
-      data?: string;
-      value?: string;
-      gas?: string;
-      gasLimit?: string;
-      gasPrice?: string;
-      maxFeePerGas?: string;
-      maxPriorityFeePerGas?: string;
-    };
-  }>;
+interface BackendQuote {
+  quoteId: string;
+  provider: string;       // human-readable, e.g. "Stargate via LI.FI"
+  backendName: string;    // machine name, e.g. "lifi"
+  outputAmount: string;
+  outputAmountRaw: string;
+  minOutputAmount: string;
+  minOutputAmountRaw: string;
+  outputDecimals?: number;
+  estimatedGasCostUsd: number | null;
+  estimatedFeeUsd: number | null;
+  feeBreakdown: {
+    gasCostUsd: number | null;
+    protocolFeeUsd: number;
+    integratorFeeUsd: number;
+    integratorFeePercent: string | null;
+    totalFeeUsd: number | null;
+    fixFeeNativeRaw?: string;
+    fixFeeUsd?: number;
+    operatingExpenseRaw?: string;
+    totalSourceAmountRaw?: string;
+  };
+  estimatedTimeSeconds: number;
+  route: string;
+  expiresAt: number;
+  ttlExpiresAt: number;
 }
 
-const PROVIDER_API_KEY: Record<ProviderKey, QuoteResult['provider']> = {
-  lifi: 'lifi-api',
-  debridge: 'debridge-api',
-  squid: 'squid-api',
-  relay: 'relay-api',
-  across: 'across-api',
-};
+interface FailedProvider {
+  provider: string;
+  reason: string;
+}
 
-function normalizeBackendQuote(
-  raw: BackendQuoteShape,
-  provider: ProviderKey,
-  toTokenDecimals: number
-): QuoteResult {
-  const route = raw.routeSteps?.map((s) => s.type).filter(Boolean).join(' + ') ?? provider.toUpperCase();
-  const etaMs = numberFromUnknown(raw.duration?.estimated, 90000);
-  const rawTx = raw.userSteps?.find((s) => s.type === 'TRANSACTION')?.transaction;
-  const transactionRequest = rawTx
-    ? {
-        to: rawTx.to,
-        data: rawTx.data,
-        value: rawTx.value,
-        gasLimit: rawTx.gasLimit ?? rawTx.gas,
-        gasPrice: rawTx.gasPrice,
-        maxFeePerGas: rawTx.maxFeePerGas,
-        maxPriorityFeePerGas: rawTx.maxPriorityFeePerGas,
-      }
-    : undefined;
+interface QuoteResponse {
+  durationMs: number;
+  failedProviders: FailedProvider[];
+  quotes: BackendQuote[];
+}
 
-  const fixFeeUsdRaw = numberFromUnknown(raw.fixFeeUsd, 0);
-  const integratorFeeUsdRaw = numberFromUnknown(raw.integratorFeeUsd, 0);
-
+function quoteToResult(q: BackendQuote, providerKey: ProviderKey, toDecimals: number): QuoteResult {
   return {
-    id: raw.id,
-    provider: PROVIDER_API_KEY[provider],
-    trackingId: raw.trackingId,
-    route,
-    feeUsd: numberFromUnknown(raw.feeUsd, 0),
-    fixFeeUsd: fixFeeUsdRaw > 0 ? fixFeeUsdRaw : undefined,
-    integratorFeeUsd: integratorFeeUsdRaw > 0 ? integratorFeeUsdRaw : undefined,
-    etaSeconds: Math.max(15, Math.round(etaMs / 1000)),
-    destinationAmount: parseAmountFromQuote(raw.dstAmount, toTokenDecimals),
-    destinationAmountMin: parseAmountFromQuote(raw.dstAmountMin, toTokenDecimals),
-    transactionRequest,
-    raw,
+    id: q.quoteId,
+    provider: PROVIDER_API_KEY[providerKey],
+    route: q.route ?? q.provider ?? providerKey.toUpperCase(),
+    feeUsd: q.estimatedFeeUsd ?? 0,
+    fixFeeUsd: q.feeBreakdown?.fixFeeUsd && q.feeBreakdown.fixFeeUsd > 0 ? q.feeBreakdown.fixFeeUsd : undefined,
+    integratorFeeUsd:
+      q.feeBreakdown?.integratorFeeUsd && q.feeBreakdown.integratorFeeUsd > 0
+        ? q.feeBreakdown.integratorFeeUsd
+        : undefined,
+    etaSeconds: Math.max(15, Math.round(q.estimatedTimeSeconds)),
+    destinationAmount: parseAmountFromQuote(q.outputAmountRaw, toDecimals),
+    destinationAmountMin: parseAmountFromQuote(q.minOutputAmountRaw, toDecimals),
+    transactionRequest: undefined,
+    raw: q,
   };
 }
 
@@ -208,11 +181,10 @@ export interface AllQuotesResult {
 /**
  * Fetch quotes from every supported provider in a single backend call.
  *
- * The backend hits Persistence's `/quote` once and runs `/execute` per
- * provider in parallel — so this single HTTP round-trip returns whatever
- * subset of {LI.FI, Squid, deBridge, Relay, Across} actually has a route
- * for the requested pair, with the failed ones listed in `failed` so the
- * UI can decide what to show.
+ * Hits bridgekitty-backend's `POST /quote` once and groups the returned
+ * `quotes[]` by `backendName` to keep the existing per-provider API shape
+ * the UI expects. The transaction itself is NOT returned here — call
+ * `executeQuote(quoteId)` after the user picks a route.
  */
 export async function getAllSwapQuotes(
   request: QuoteRequest,
@@ -224,40 +196,102 @@ export async function getAllSwapQuotes(
 
   const fromToken = getToken(request.fromChain, request.fromTokenSymbol);
   const toToken = getToken(request.toChain, request.toTokenSymbol);
-
   if (!fromToken || !toToken) {
     throw new Error('Unsupported token for selected chain.');
+  }
+
+  const fromChainId = CHAIN_BY_KEY[request.fromChain]?.chainId;
+  const toChainId = CHAIN_BY_KEY[request.toChain]?.chainId;
+  if (!fromChainId || !toChainId) {
+    throw new Error('Unsupported chain for selected route.');
   }
 
   const amountInUnits = parseUnits(request.amount, fromToken.decimals).toString();
   const wallet = request.walletAddress || NULL_ADDRESS;
 
+  const base = resolveApiBaseUrl();
+  if (!base) throw new QuoteFetchError('Backend quote URL unavailable.', 0);
+
   const payload = {
-    srcChainKey: request.fromChain,
-    dstChainKey: request.toChain,
-    srcTokenAddress: fromToken.address,
-    dstTokenAddress: toToken.address,
-    srcWalletAddress: wallet,
-    dstWalletAddress: wallet,
+    fromChainId,
+    toChainId,
+    fromTokenAddress: fromToken.address,
+    toTokenAddress: toToken.address,
     amount: amountInUnits,
+    fromAddress: wallet,
+    toAddress: wallet,
+    preference: 'cheapest',
   };
 
-  const data = (await fetchQuoteFromBackend(payload, signal)) as {
-    quotes?: Partial<Record<ProviderKey, BackendQuoteShape>>;
-    failed?: Partial<Record<ProviderKey, string>>;
-  };
+  const data = await postJson<QuoteResponse>(`${base}/quote`, payload, signal);
 
   const quotes: Partial<Record<ProviderKey, QuoteResult>> = {};
-  for (const [provider, rawQuote] of Object.entries(data.quotes ?? {})) {
-    if (rawQuote) {
-      quotes[provider as ProviderKey] = normalizeBackendQuote(
-        rawQuote,
-        provider as ProviderKey,
-        toToken.decimals
-      );
+  // Take the best-ranked quote per provider (the array is already sorted by preference)
+  for (const q of data.quotes ?? []) {
+    const key = normalizeBackendName(q.backendName);
+    if (!key) continue;
+    if (!quotes[key]) {
+      quotes[key] = quoteToResult(q, key, toToken.decimals);
     }
   }
 
-  return { quotes, failed: data.failed ?? {} };
+  const failed: Partial<Record<ProviderKey, string>> = {};
+  for (const fp of data.failedProviders ?? []) {
+    const key = normalizeBackendName(fp.provider);
+    if (key) failed[key] = fp.reason;
+  }
+
+  return { quotes, failed };
 }
 
+interface ExecuteResponse {
+  quoteId: string;
+  provider: string;
+  trackingId: string;
+  transaction: {
+    to: string;
+    data: string;
+    value: string;
+    chainId: number;
+    gasLimit?: string;
+  };
+  approvalTransaction?: {
+    to: string;
+    data: string;
+    value: string;
+    chainId: number;
+  };
+  needsPostApprovalBuild?: boolean;
+  eip712?: unknown;
+  solanaTransaction?: { serializedTx?: string } | null;
+}
+
+export interface ExecutedQuote {
+  trackingId: string;
+  transactionRequest: NonNullable<QuoteResult['transactionRequest']>;
+  approvalTransaction?: NonNullable<ExecuteResponse['approvalTransaction']>;
+  needsPostApprovalBuild?: boolean;
+}
+
+/**
+ * Build the executable transaction for a quoteId. Idempotent on the backend —
+ * concurrent calls for the same quoteId share the same payload (no 409s).
+ */
+export async function executeQuote(quoteId: string, signal?: AbortSignal): Promise<ExecutedQuote> {
+  const base = resolveApiBaseUrl();
+  if (!base) throw new QuoteFetchError('Backend API URL unavailable.', 0);
+
+  const data = await postJson<ExecuteResponse>(`${base}/execute`, { quoteId }, signal);
+
+  return {
+    trackingId: data.trackingId,
+    transactionRequest: {
+      to: data.transaction.to,
+      data: data.transaction.data,
+      value: data.transaction.value,
+      gasLimit: data.transaction.gasLimit,
+    },
+    approvalTransaction: data.approvalTransaction,
+    needsPostApprovalBuild: data.needsPostApprovalBuild,
+  };
+}

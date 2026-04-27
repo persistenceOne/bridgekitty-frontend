@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { PrivyWalletBridge } from '../components/WalletConnector';
-import type { QuoteResult } from '../services/quoteService';
+import { executeQuote, type QuoteResult } from '../services/quoteService';
 import { pollTransactionStatus, stageToProgress, type TxStatusResult } from '../services/transactionStatusService';
 import { parseUnits } from '../lib/amount';
 import { ensureTokenApproval, isNativeToken } from '../lib/erc20';
@@ -27,7 +27,7 @@ export function useSwapExecution(
 
   const startStatusPolling = useCallback((
     hash: string,
-    provider: string,
+    trackingId: string,
     fromChain: ChainKey,
     toChain: ChainKey
   ) => {
@@ -37,7 +37,7 @@ export function useSwapExecution(
 
     statusPollerRef.current = pollTransactionStatus(
       hash,
-      provider,
+      trackingId,
       fromChain,
       (result: TxStatusResult) => {
         setTxStatus((prev) => {
@@ -114,71 +114,94 @@ export function useSwapExecution(
       return;
     }
 
-    if (!bestQuote.transactionRequest) {
-      setError('No executable transaction found in this quote.');
-      return;
-    }
-
-    const txValidationError = validateTransactionRequest(bestQuote.transactionRequest);
-    if (txValidationError) {
-      setError(txValidationError);
-      return;
-    }
-
-    // Defence-in-depth: if the calldata contains the connected wallet's
-    // address, the recipient embedded matches us. If NEITHER fromChain nor
-    // dstChain calldata mentions our address, something is off — refuse.
-    // (Provider routers universally encode the recipient in calldata; a quote
-    //  that omits us entirely is almost certainly misrouted.)
-    const data = (bestQuote.transactionRequest.data ?? '').toLowerCase();
-    const walletNeedle = walletBridge.address.toLowerCase().replace(/^0x/, '');
-    if (data.length > 10 && walletNeedle && !data.includes(walletNeedle)) {
-      setError(
-        'Safety check failed: this quote does not appear to route funds to your connected wallet. Refresh quotes and try again.'
-      );
-      return;
-    }
-
     try {
       setIsExecuting(true);
       setError('');
       setTxStatus(null);
 
+      // Two-step flow: bridgekitty-backend's /quote returns quote metadata only;
+      // /execute builds the unsigned tx for the chosen quoteId.
+      let executed = await executeQuote(bestQuote.id);
+
+      // Defence-in-depth: confirm the calldata actually references our wallet.
+      // The backend already does this server-side, but two layers is fine.
+      const walletNeedle = walletBridge.address.toLowerCase().replace(/^0x/, '');
+      const calldata = (executed.transactionRequest.data ?? '').toLowerCase();
+      if (calldata.length > 10 && walletNeedle && !calldata.includes(walletNeedle)) {
+        setError(
+          'Safety check failed: this quote does not appear to route funds to your connected wallet. Refresh quotes and try again.'
+        );
+        return;
+      }
+
+      const txValidationError = validateTransactionRequest(executed.transactionRequest);
+      if (txValidationError) {
+        setError(txValidationError);
+        return;
+      }
+
       await walletBridge.switchChain(fromChainId);
       const provider = await walletBridge.getEthereumProvider();
 
-      const spenderAddress = bestQuote.transactionRequest.to;
-      if (spenderAddress && !isNativeToken(selectedFromToken.address)) {
-        const requiredAmount = requestedAmountRaw ?? parseUnits(draft.amount, selectedFromToken.decimals);
-        await ensureTokenApproval(
-          provider,
-          selectedFromToken.address,
-          walletBridge.address,
-          spenderAddress,
-          requiredAmount
-        );
+      // ERC-20 approval: prefer the backend's pre-built approval tx when present;
+      // fall back to ensureTokenApproval for the legacy/native flow.
+      if (executed.approvalTransaction) {
+        const approvalTxHash = (await provider.request({
+          method: 'eth_sendTransaction',
+          params: [{
+            from: walletBridge.address,
+            to: executed.approvalTransaction.to,
+            data: executed.approvalTransaction.data,
+            value: toHexQuantity(executed.approvalTransaction.value) ?? '0x0',
+          }],
+        })) as string;
+        // Wait briefly for the approval to propagate. We don't wait for full
+        // confirmation here — just enough that the next eth_sendTransaction
+        // sees the new allowance. ensureTokenApproval would do this for us
+        // but we already have the approval payload from the backend.
+        await new Promise((r) => setTimeout(r, 2000));
+        // Some providers (deBridge) embed a nonce in the bridge tx that goes
+        // stale once the approval is mined — re-fetch the bridge tx in that case.
+        if (executed.needsPostApprovalBuild) {
+          executed = await executeQuote(bestQuote.id);
+        }
+        void approvalTxHash;
+      } else if (!isNativeToken(selectedFromToken.address)) {
+        // Backend did not return an approval tx — use the local helper to ensure
+        // allowance is sufficient before the bridge call.
+        const spenderAddress = executed.transactionRequest.to;
+        if (spenderAddress) {
+          const requiredAmount = requestedAmountRaw ?? parseUnits(draft.amount, selectedFromToken.decimals);
+          await ensureTokenApproval(
+            provider,
+            selectedFromToken.address,
+            walletBridge.address,
+            spenderAddress,
+            requiredAmount
+          );
+        }
       }
 
       const txParams: Record<string, unknown> = {
         from: walletBridge.address,
-        to: bestQuote.transactionRequest.to,
+        to: executed.transactionRequest.to,
         // Base Builder Code: append builder data for Base chain only. Additionally, deBridge DLN
         // creates an on-chain order by hashing calldata — extra trailing bytes
         // corrupt the order hash regardless of source chain, so skip for deBridge.
         data: bestQuote.provider !== 'debridge-api'
-          ? appendBuilderCodeForChain(bestQuote.transactionRequest.data, fromChainId)
-          : (bestQuote.transactionRequest.data ?? '0x'),
-        value: toHexQuantity(bestQuote.transactionRequest.value) ?? '0x0',
+          ? appendBuilderCodeForChain(executed.transactionRequest.data, fromChainId)
+          : (executed.transactionRequest.data ?? '0x'),
+        value: toHexQuantity(executed.transactionRequest.value) ?? '0x0',
       };
 
-      if (bestQuote.transactionRequest.maxFeePerGas) {
-        txParams.maxFeePerGas = toHexQuantity(bestQuote.transactionRequest.maxFeePerGas);
-        txParams.maxPriorityFeePerGas = toHexQuantity(bestQuote.transactionRequest.maxPriorityFeePerGas);
-      } else if (bestQuote.transactionRequest.gasPrice) {
-        txParams.gasPrice = toHexQuantity(bestQuote.transactionRequest.gasPrice);
+      if (executed.transactionRequest.maxFeePerGas) {
+        txParams.maxFeePerGas = toHexQuantity(executed.transactionRequest.maxFeePerGas);
+        txParams.maxPriorityFeePerGas = toHexQuantity(executed.transactionRequest.maxPriorityFeePerGas);
+      } else if (executed.transactionRequest.gasPrice) {
+        txParams.gasPrice = toHexQuantity(executed.transactionRequest.gasPrice);
       }
-      if (bestQuote.transactionRequest.gasLimit) {
-        txParams.gas = toHexQuantity(bestQuote.transactionRequest.gasLimit);
+      if (executed.transactionRequest.gasLimit) {
+        txParams.gas = toHexQuantity(executed.transactionRequest.gasLimit);
       }
 
       const txHash = (await provider.request({
@@ -186,9 +209,7 @@ export function useSwapExecution(
         params: [txParams]
       })) as string;
 
-      // Use the Persistence trackingId (e.g. "lifi:0xhash", "debridge:0xorderhash")
-      // as the polling key — the backend status route forwards it directly to Persistence.
-      startStatusPolling(txHash, bestQuote.trackingId ?? bestQuote.provider, draft.fromChain, draft.toChain);
+      startStatusPolling(txHash, executed.trackingId, draft.fromChain, draft.toChain);
       await recordSwap(txHash, walletBridge.address, bestQuote.id, draft, bestQuote.provider, volumeUsd);
 
       onPostSwap();
