@@ -1,5 +1,6 @@
 import type { ChainKey } from './lib/chains';
 import type { ProviderKey, SwapDraft, TxStage } from './types';
+import { resolveApiBaseUrl } from './lib/apiBaseUrl';
 
 export const HAS_PRIVY = Boolean(import.meta.env.VITE_PRIVY_APP_ID);
 export const IS_PROD = import.meta.env.PROD;
@@ -16,8 +17,7 @@ export const DEBOUNCE_MS = 1000;
 export const QUOTE_REFRESH_INTERVAL_S = 60;
 export const HISTORY_LIMIT = 50;
 
-export const API_BASE_URL =
-  (import.meta.env.VITE_BRIDGEKITTY_API_BASE_URL ?? '').replace(/\/$/, '') || 'http://localhost:8080/api';
+export const API_BASE_URL = resolveApiBaseUrl();
 
 export const LIVE_PROVIDERS: ProviderKey[] = ['lifi', 'squid', 'debridge', 'relay', 'across'];
 
