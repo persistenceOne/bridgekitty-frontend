@@ -1,6 +1,7 @@
 import { useEffect, useMemo } from 'react';
 import { LogOut, Wallet2 } from 'lucide-react';
 import { usePrivy, useWallets } from '@privy-io/react-auth';
+import { resolveApiBaseUrl } from '../lib/apiBaseUrl';
 
 type EthereumProvider = {
   request: (args: { method: string; params?: unknown[] }) => Promise<unknown>;
@@ -81,8 +82,7 @@ export function PrivyWalletConnector({
     onWalletAddress(walletAddress ?? null);
 
     if (walletAddress) {
-      const base = import.meta.env.VITE_BRIDGEKITTY_API_BASE_URL?.replace(/\/$/, '')
-        || (['localhost', '127.0.0.1'].includes(window.location.hostname) ? 'http://localhost:8080/api' : '');
+      const base = resolveApiBaseUrl();
       if (base) {
         fetch(`${base}/wallets`, {
           method: 'POST',
