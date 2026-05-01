@@ -392,6 +392,8 @@ export function SwapView({
             <img src="/providers/debridge.png" alt="deBridge" className="hf-swap-powered-logo" />
             <img src="/providers/relay.png" alt="Relay" className="hf-swap-powered-logo" />
             <img src="/providers/across.png" alt="Across" className="hf-swap-powered-logo" />
+            <img src="/providers/symbiosis.svg" alt="Symbiosis" className="hf-swap-powered-logo" />
+            <img src="/providers/meson.svg" alt="Meson" className="hf-swap-powered-logo" />
           </div>
 
           {/* Quote Refresh Countdown */}

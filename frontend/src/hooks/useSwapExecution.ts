@@ -65,8 +65,16 @@ export function useSwapExecution(
     quoteId: string,
     draft: SwapDraft,
     provider: string,
-    volumeUsd?: number
+    volumeUsd: number | undefined,
+    fees: {
+      feeUsd?: number;
+      integratorFeeUsd?: number;
+      protocolFeeUsd?: number;
+      gasCostUsd?: number;
+      fixFeeUsd?: number;
+    } | undefined
   ) => {
+    const feeFields = fees ?? {};
     try {
       await fetch(`${API_BASE_URL}/swaps`, {
         method: 'POST',
@@ -80,6 +88,14 @@ export function useSwapExecution(
           toTokenSymbol: draft.toTokenSymbol,
           amount: draft.amount,
           ...(volumeUsd != null && { volumeUsd }),
+          // Fee breakdown — backend persists these into swap_records and
+          // transaction_history columns (added in v0.2.2). Optional fields;
+          // backend treats missing values as null.
+          ...(feeFields.feeUsd != null && { feeUsd: feeFields.feeUsd }),
+          ...(feeFields.integratorFeeUsd != null && { integratorFeeUsd: feeFields.integratorFeeUsd }),
+          ...(feeFields.protocolFeeUsd != null && { protocolFeeUsd: feeFields.protocolFeeUsd }),
+          ...(feeFields.gasCostUsd != null && { gasCostUsd: feeFields.gasCostUsd }),
+          ...(feeFields.fixFeeUsd != null && { fixFeeUsd: feeFields.fixFeeUsd }),
           status: 'submitted',
           txHash,
           provider,
@@ -210,7 +226,30 @@ export function useSwapExecution(
       })) as string;
 
       startStatusPolling(txHash, executed.trackingId, draft.fromChain, draft.toChain);
-      await recordSwap(txHash, walletBridge.address, bestQuote.id, draft, bestQuote.provider, volumeUsd);
+
+      // Extract fee breakdown from the raw backend response (BackendQuote shape)
+      // for persistence into swap_records / transaction_history.
+      const rawFee = (bestQuote.raw as { feeBreakdown?: {
+        gasCostUsd?: number | null;
+        protocolFeeUsd?: number;
+        integratorFeeUsd?: number;
+        fixFeeUsd?: number;
+      } } | undefined)?.feeBreakdown;
+      await recordSwap(
+        txHash,
+        walletBridge.address,
+        bestQuote.id,
+        draft,
+        bestQuote.provider,
+        volumeUsd,
+        {
+          feeUsd: bestQuote.feeUsd,
+          integratorFeeUsd: bestQuote.integratorFeeUsd,
+          protocolFeeUsd: rawFee?.protocolFeeUsd,
+          gasCostUsd: rawFee?.gasCostUsd ?? undefined,
+          fixFeeUsd: bestQuote.fixFeeUsd ?? rawFee?.fixFeeUsd,
+        }
+      );
 
       onPostSwap();
     } catch (caughtError) {
