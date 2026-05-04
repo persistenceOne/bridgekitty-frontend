@@ -15,8 +15,10 @@ const ALCHEMY_CHAIN_SUBDOMAIN: Partial<Record<ChainKey, string>> = {
   polygon: 'polygon-mainnet'
 };
 
-// BSC and Monad are NOT supported by Alchemy — use public RPCs as fallback.
-// Ordered fastest-to-slowest; we iterate on failure.
+// Chains not on Alchemy use public RPCs. Ordered fastest-to-slowest; we
+// iterate on failure. The BTC-L2 entries (bitlayer/merlin/core/b2-network/
+// rootstock/bob) were missing prior to this and caused balance fetches to
+// silently return {} on those chains.
 // Note: binance.llamarpc.com was removed — the hostname returns NXDOMAIN as of 2026.
 const FALLBACK_RPC_BY_CHAIN: Partial<Record<ChainKey, string[]>> = {
   bsc: [
@@ -27,6 +29,30 @@ const FALLBACK_RPC_BY_CHAIN: Partial<Record<ChainKey, string[]>> = {
   monad: [
     'https://rpc.monad.xyz',
     'https://monad-mainnet.drpc.org'
+  ],
+  bitlayer: [
+    'https://rpc.bitlayer.org',
+    'https://rpc-bitlayer.rockx.com'
+  ],
+  merlin: [
+    'https://rpc.merlinchain.io',
+    'https://merlin.blockpi.network/v1/rpc/public'
+  ],
+  core: [
+    'https://rpc.coredao.org',
+    'https://rpc.ankr.com/core'
+  ],
+  'b2-network': [
+    'https://rpc.bsquared.network',
+    'https://b2-mainnet.alt.technology'
+  ],
+  rootstock: [
+    'https://public-node.rsk.co',
+    'https://rootstock.drpc.org'
+  ],
+  bob: [
+    'https://rpc.gobob.xyz',
+    'https://bob-mainnet.public.blastapi.io'
   ]
 };
 
@@ -288,13 +314,16 @@ export async function fetchSingleTokenBalance(
     }
   }
 
-  const rpcs = FALLBACK_RPC_BY_CHAIN[chainKey] ?? [
-    chainKey === 'ethereum' ? 'https://eth.llamarpc.com' :
-    chainKey === 'base'     ? 'https://base.llamarpc.com' :
-    chainKey === 'polygon'  ? 'https://polygon.llamarpc.com' :
-    chainKey === 'monad'    ? 'https://rpc.monad.xyz' :
-    undefined
-  ].filter(Boolean) as string[];
+  const publicRpcs: Partial<Record<ChainKey, string>> = {
+    ethereum: 'https://eth.llamarpc.com',
+    base:     'https://base.llamarpc.com',
+    polygon:  'https://polygon.llamarpc.com'
+  };
+
+  const rpcs = [
+    ...(FALLBACK_RPC_BY_CHAIN[chainKey] ?? []),
+    ...(publicRpcs[chainKey] ? [publicRpcs[chainKey]!] : [])
+  ];
 
   for (const rpcUrl of rpcs) {
     try {

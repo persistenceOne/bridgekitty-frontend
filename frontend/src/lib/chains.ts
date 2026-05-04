@@ -32,13 +32,6 @@ export interface ChainOption {
 // ── Ethereum ─────────────────────────────────────────────
 const ETHEREUM_TOKENS: TokenOption[] = [
   {
-    symbol: 'ETH',
-    name: 'Ether',
-    address: NATIVE_TOKEN_ADDRESS,
-    decimals: 18,
-    logoURI: '/token-icons/eth.svg'
-  },
-  {
     symbol: 'USDC',
     name: 'USD Coin',
     address: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
@@ -65,46 +58,11 @@ const ETHEREUM_TOKENS: TokenOption[] = [
     address: '0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599',
     decimals: 8,
     logoURI: '/token-icons/wbtc.png'
-  },
-  {
-    symbol: 'WETH',
-    name: 'Wrapped Ether',
-    address: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2',
-    decimals: 18,
-    logoURI: '/token-icons/weth.png'
-  },
-  {
-    symbol: 'UNI',
-    name: 'Uniswap',
-    address: '0x1f9840a85d5af5bf1d1762f925bdaddc4201f984',
-    decimals: 18,
-    logoURI: '/token-icons/uni.svg'
-  },
-  {
-    symbol: 'AAVE',
-    name: 'Aave',
-    address: '0x7Fc66500c84A76Ad7e9c93437bFc5Ac33E2DDaE9',
-    decimals: 18,
-    logoURI: '/token-icons/aave.svg'
-  },
-  {
-    symbol: 'XAUT',
-    name: 'Tether Gold',
-    address: '0x68749665FF8D2d112Fa859AA293F07A622782F38',
-    decimals: 6,
-    logoURI: '/token-icons/xaut.svg'
   }
 ];
 
 // ── Base ──────────────────────────────────────────────────
 const BASE_TOKENS: TokenOption[] = [
-  {
-    symbol: 'ETH',
-    name: 'Ether',
-    address: NATIVE_TOKEN_ADDRESS,
-    decimals: 18,
-    logoURI: '/token-icons/eth.svg'
-  },
   {
     symbol: 'USDC',
     name: 'USD Coin',
@@ -132,39 +90,11 @@ const BASE_TOKENS: TokenOption[] = [
     address: '0xcbB7C0000aB88B473b1f5aFd9ef808440eed33Bf',
     decimals: 8,
     logoURI: '/token-icons/cbbtc.png'
-  },
-  {
-    symbol: 'WETH',
-    name: 'Wrapped Ether',
-    address: '0x4200000000000000000000000000000000000006',
-    decimals: 18,
-    logoURI: '/token-icons/weth.png'
-  },
-  {
-    symbol: 'VIRTUAL',
-    name: 'Virtuals Protocol',
-    address: '0x0b3e328455c4059EEb9e3f84b5543F74E24e7E1b',
-    decimals: 18,
-    logoURI: '/token-icons/virtual.png'
-  },
-  {
-    symbol: 'AERO',
-    name: 'Aerodrome Finance',
-    address: '0x940181a94a35a4569e4529a3cdfb74e38fd98631',
-    decimals: 18,
-    logoURI: '/token-icons/aero.png'
   }
 ];
 
 // ── BNB Chain ─────────────────────────────────────────────
 const BSC_TOKENS: TokenOption[] = [
-  {
-    symbol: 'BNB',
-    name: 'BNB',
-    address: NATIVE_TOKEN_ADDRESS,
-    decimals: 18,
-    logoURI: '/token-icons/bnb.svg'
-  },
   {
     symbol: 'USDT',
     name: 'Tether USD',
@@ -180,58 +110,16 @@ const BSC_TOKENS: TokenOption[] = [
     logoURI: '/token-icons/usdc.svg'
   },
   {
-    symbol: 'ETH',
-    name: 'Ethereum Token',
-    address: '0x2170ed0880ac9a755fd29b2688956bd959f933f8',
-    decimals: 18,
-    logoURI: '/token-icons/eth.svg'
-  },
-  {
     symbol: 'BTCB',
     name: 'Binance-Peg BTCB Token',
     address: '0x7130d2A12B9BCbFAe4f2634d864A1Ee1Ce3Ead9c',
     decimals: 18,
     logoURI: '/token-icons/btcb.png'
-  },
-  {
-    symbol: 'UNI',
-    name: 'Uniswap',
-    address: '0xbf5140a22578168fd562dccf235e5d43a02ce9b1',
-    decimals: 18,
-    logoURI: '/token-icons/uni.svg'
-  },
-  {
-    symbol: 'AAVE',
-    name: 'Aave',
-    address: '0xfb6115445bff7b52feb98650c87f44907e58f802',
-    decimals: 18,
-    logoURI: '/token-icons/aave.svg'
-  },
-  {
-    symbol: 'XAUT',
-    name: 'Tether Gold',
-    address: '0x21cAef8A43163Eea865baeE23b9C2E327696A3bf',
-    decimals: 6,
-    logoURI: '/token-icons/xaut.svg'
   }
 ];
 
 // ── Polygon ───────────────────────────────────────────────
 const POLYGON_TOKENS: TokenOption[] = [
-  {
-    symbol: 'POL',
-    name: 'POL',
-    address: NATIVE_TOKEN_ADDRESS,
-    decimals: 18,
-    logoURI: '/token-icons/matic.svg'
-  },
-  {
-    symbol: 'WETH',
-    name: 'Wrapped Ether',
-    address: '0x7ceB23fD6bC0adD59E62ac25578270cFf1b9f619',
-    decimals: 18,
-    logoURI: '/token-icons/weth.png'
-  },
   {
     symbol: 'USDC',
     name: 'USD Coin',
@@ -252,46 +140,11 @@ const POLYGON_TOKENS: TokenOption[] = [
     address: '0x1bfd67037b42cf73acf2047067bd4f2c47d9bfd6',
     decimals: 8,
     logoURI: '/token-icons/wbtc.png'
-  },
-  {
-    symbol: 'UNI',
-    name: 'Uniswap',
-    address: '0xb33eaad8d922b1083446dc23f610c2567fb5180f',
-    decimals: 18,
-    logoURI: '/token-icons/uni.svg'
-  },
-  {
-    symbol: 'AAVE',
-    name: 'Aave',
-    address: '0xd6df932a45c0f255f85145f286ea0b292b21c90b',
-    decimals: 18,
-    logoURI: '/token-icons/aave.svg'
   }
 ];
 
 // ── Monad ─────────────────────────────────────────────────
 const MONAD_TOKENS: TokenOption[] = [
-  {
-    symbol: 'MON',
-    name: 'Monad',
-    address: NATIVE_TOKEN_ADDRESS,
-    decimals: 18,
-    logoURI: '/token-icons/mon.png'
-  },
-  {
-    symbol: 'WMON',
-    name: 'Wrapped Monad',
-    address: '0x3bd359c1119da7da1d913d1c4d2b7c461115433a',
-    decimals: 18,
-    logoURI: '/token-icons/mon.png'
-  },
-  {
-    symbol: 'WETH',
-    name: 'Wrapped Ether',
-    address: '0xEE8c0E9f1BFFb4Eb878d8f15f368A02a35481242',
-    decimals: 18,
-    logoURI: '/token-icons/weth.png'
-  },
   {
     symbol: 'WBTC',
     name: 'Wrapped Bitcoin',
@@ -309,8 +162,7 @@ const MONAD_TOKENS: TokenOption[] = [
 const BITLAYER_TOKENS: TokenOption[] = [
   { symbol: 'BTC',  name: 'Bitcoin',     address: NATIVE_TOKEN_ADDRESS, decimals: 18, logoURI: '/token-icons/wbtc.png' },
   { symbol: 'USDC', name: 'USD Coin',    address: '0xf8C374CE88A3BE3d374e8888349C7768B607c755', decimals: 6, logoURI: '/token-icons/usdc.svg' },
-  { symbol: 'USDT', name: 'Tether USD',  address: '0xfe9f969faf8ad72a83b761138bf25de87eff9dd2', decimals: 6, logoURI: '/token-icons/usdt.svg' },
-  { symbol: 'ETH',  name: 'Ether',       address: '0xef63d4e178b3180beec9b0e143e0f37f4c93f4c2', decimals: 18, logoURI: '/token-icons/eth.svg' }
+  { symbol: 'USDT', name: 'Tether USD',  address: '0xfe9f969faf8ad72a83b761138bf25de87eff9dd2', decimals: 6, logoURI: '/token-icons/usdt.svg' }
 ];
 
 const MERLIN_TOKENS: TokenOption[] = [
@@ -321,10 +173,8 @@ const MERLIN_TOKENS: TokenOption[] = [
 ];
 
 const CORE_TOKENS: TokenOption[] = [
-  { symbol: 'CORE', name: 'Core',        address: NATIVE_TOKEN_ADDRESS, decimals: 18, logoURI: '/chains/core.svg' },
   { symbol: 'USDC', name: 'USD Coin',    address: '0xa4151B2B3e269645181dCcF2D426cE75fcbDeca9', decimals: 6, logoURI: '/token-icons/usdc.svg' },
-  { symbol: 'USDT', name: 'Tether USD',  address: '0x900101d06A7426441Ae63e9AB3B9b0F63Be145F1', decimals: 6, logoURI: '/token-icons/usdt.svg' },
-  { symbol: 'WETH', name: 'Wrapped Ether', address: '0xeAB3aC417c4d6dF6b143346a46fEe1B847B50296', decimals: 18, logoURI: '/token-icons/weth.png' }
+  { symbol: 'USDT', name: 'Tether USD',  address: '0x900101d06A7426441Ae63e9AB3B9b0F63Be145F1', decimals: 6, logoURI: '/token-icons/usdt.svg' }
 ];
 
 const B2_NETWORK_TOKENS: TokenOption[] = [
@@ -339,7 +189,6 @@ const ROOTSTOCK_TOKENS: TokenOption[] = [
 ];
 
 const BOB_TOKENS: TokenOption[] = [
-  { symbol: 'ETH',  name: 'Ether',       address: NATIVE_TOKEN_ADDRESS, decimals: 18, logoURI: '/token-icons/eth.svg' },
   { symbol: 'WBTC', name: 'Wrapped Bitcoin', address: '0x03c7054bcb39f7b2e5b2c7acb37583e32d70cfa3', decimals: 8, logoURI: '/token-icons/wbtc.png' },
   { symbol: 'USDC', name: 'USDC.e',      address: '0xe75d0fb2c24a55ca1e3f96781a2bcc7bdba058f0', decimals: 6, logoURI: '/token-icons/usdc.svg' }
 ];
