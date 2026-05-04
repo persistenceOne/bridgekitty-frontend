@@ -15,7 +15,7 @@ Built by [Persistence](https://persistence.one)
 
 ---
 
-BridgeKitty is a cross-chain swap aggregator. Pick a token on one chain, pick where you want it to land, and BridgeKitty fetches quotes from five routing providers — **LI.FI, Squid Router, deBridge, Relay, and Across** — and shows you the best one. No account, no sign-up. Connect your wallet and swap.
+BridgeKitty is a cross-chain swap aggregator. Pick a token on one chain, pick where you want it to land, and BridgeKitty fetches quotes from seven routing providers — **LI.FI, Squid Router, deBridge, Relay, Across, Symbiosis, and Meson** — and shows you the best one. No account, no sign-up. Connect your wallet and swap.
 
 This repo is the demo frontend. It talks **directly** to the BridgeKitty backend at `https://api.bridgekitty.persistence.one/api/v1` — no local proxy needed. The full integration spec is in [`bridgekitty-backend/docs/integration_bridgekitty.md`](https://github.com/persistenceOne/bridgekitty-backend/blob/main/docs/integration_bridgekitty.md).
 
@@ -41,9 +41,10 @@ Two components: a React frontend and the BridgeKitty backend (operated by Persis
 │                 │     GET  /status/:id   │  api.bridgekitty.        │
 │ bridgekittydemo │     POST /wallets      │   persistence.one        │
 │ .vercel.app     │     POST /swaps        │                          │
-│                 │     GET  /stats        │  Aggregates 5 providers: │
+│                 │     GET  /stats        │  Aggregates 7 providers: │
 └─────────────────┘                        │  LI.FI · Squid · deBridge│
-       │                                   │  Relay · Across          │
+       │                                   │  Relay · Across ·        │
+       │                                   │  Symbiosis · Meson       │
        │  user's wallet signs tx directly  └──────────────────────────┘
        ▼
    ┌───────────┐
@@ -80,11 +81,17 @@ Cross-chain swaps usually settle in 30 seconds to a few minutes depending on the
 |-------|---------:|--------------|
 | Ethereum | 1 | ETH |
 | Base | 8453 | ETH |
+| BOB | 60808 | ETH |
 | BNB Chain | 56 | BNB |
-| Polygon | 137 | POL |
 | Monad | 143 | MON |
+| Polygon | 137 | POL |
+| Bitlayer | 200901 | BTC |
+| B² Network | 223 | BTC |
+| Rootstock | 30 | RBTC |
+| Core | 1116 | CORE |
+| Merlin | 4200 | BTC |
 
-The BridgeKitty backend supports many more chains; this demo's UI is limited to the five above. Token list lives in [`frontend/src/lib/chains.ts`](frontend/src/lib/chains.ts).
+Token list lives in [`frontend/src/lib/chains.ts`](frontend/src/lib/chains.ts).
 
 ---
 
