@@ -32,6 +32,27 @@ export interface ChainOption {
 // ── Ethereum ─────────────────────────────────────────────
 const ETHEREUM_TOKENS: TokenOption[] = [
   {
+    symbol: 'ETH',
+    name: 'Ether',
+    address: NATIVE_TOKEN_ADDRESS,
+    decimals: 18,
+    logoURI: '/token-icons/eth.svg'
+  },
+  {
+    symbol: 'WBTC',
+    name: 'Wrapped Bitcoin',
+    address: '0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599',
+    decimals: 8,
+    logoURI: '/token-icons/wbtc.png'
+  },
+  {
+    symbol: 'cbBTC',
+    name: 'Coinbase Wrapped BTC',
+    address: '0xcbB7C0000aB88B473b1f5aFd9ef808440eed33Bf',
+    decimals: 8,
+    logoURI: '/token-icons/cbbtc.png'
+  },
+  {
     symbol: 'USDC',
     name: 'USD Coin',
     address: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
@@ -51,18 +72,32 @@ const ETHEREUM_TOKENS: TokenOption[] = [
     address: '0x6B175474E89094C44Da98b954EedeAC495271d0F',
     decimals: 18,
     logoURI: '/token-icons/dai.svg'
-  },
-  {
-    symbol: 'WBTC',
-    name: 'Wrapped Bitcoin',
-    address: '0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599',
-    decimals: 8,
-    logoURI: '/token-icons/wbtc.png'
   }
 ];
 
 // ── Base ──────────────────────────────────────────────────
 const BASE_TOKENS: TokenOption[] = [
+  {
+    symbol: 'ETH',
+    name: 'Ether',
+    address: NATIVE_TOKEN_ADDRESS,
+    decimals: 18,
+    logoURI: '/token-icons/eth.svg'
+  },
+  {
+    symbol: 'cbBTC',
+    name: 'Coinbase Wrapped BTC',
+    address: '0xcbB7C0000aB88B473b1f5aFd9ef808440eed33Bf',
+    decimals: 8,
+    logoURI: '/token-icons/cbbtc.png'
+  },
+  {
+    symbol: 'WBTC',
+    name: 'Wrapped Bitcoin',
+    address: '0x0555e30da8f98308edb960aa94c0db47230d2b9c',
+    decimals: 8,
+    logoURI: '/token-icons/wbtc.png'
+  },
   {
     symbol: 'USDC',
     name: 'USD Coin',
@@ -83,24 +118,31 @@ const BASE_TOKENS: TokenOption[] = [
     address: '0x50c5725949A6F0c72E6C4a641F24049A917DB0Cb',
     decimals: 18,
     logoURI: '/token-icons/dai.svg'
-  },
-  {
-    symbol: 'cbBTC',
-    name: 'Coinbase Wrapped BTC',
-    address: '0xcbB7C0000aB88B473b1f5aFd9ef808440eed33Bf',
-    decimals: 8,
-    logoURI: '/token-icons/cbbtc.png'
   }
 ];
 
 // ── BNB Chain ─────────────────────────────────────────────
 const BSC_TOKENS: TokenOption[] = [
   {
-    symbol: 'USDT',
-    name: 'Tether USD',
-    address: '0x55d398326f99059fF775485246999027B3197955',
+    symbol: 'BNB',
+    name: 'BNB',
+    address: NATIVE_TOKEN_ADDRESS,
     decimals: 18,
-    logoURI: '/token-icons/usdt.svg'
+    logoURI: '/token-icons/bnb.svg'
+  },
+  {
+    symbol: 'WBTC',
+    name: 'Wrapped Bitcoin',
+    address: '0x0555e30da8f98308edb960aa94c0db47230d2b9c',
+    decimals: 8,
+    logoURI: '/token-icons/wbtc.png'
+  },
+  {
+    symbol: 'BTCB',
+    name: 'Binance-Peg BTCB Token',
+    address: '0x7130d2A12B9BCbFAe4f2634d864A1Ee1Ce3Ead9c',
+    decimals: 18,
+    logoURI: '/token-icons/btcb.png'
   },
   {
     symbol: 'USDC',
@@ -110,16 +152,30 @@ const BSC_TOKENS: TokenOption[] = [
     logoURI: '/token-icons/usdc.svg'
   },
   {
-    symbol: 'BTCB',
-    name: 'Binance-Peg BTCB Token',
-    address: '0x7130d2A12B9BCbFAe4f2634d864A1Ee1Ce3Ead9c',
+    symbol: 'USDT',
+    name: 'Tether USD',
+    address: '0x55d398326f99059fF775485246999027B3197955',
     decimals: 18,
-    logoURI: '/token-icons/btcb.png'
+    logoURI: '/token-icons/usdt.svg'
   }
 ];
 
 // ── Polygon ───────────────────────────────────────────────
 const POLYGON_TOKENS: TokenOption[] = [
+  {
+    symbol: 'POL',
+    name: 'POL',
+    address: NATIVE_TOKEN_ADDRESS,
+    decimals: 18,
+    logoURI: '/token-icons/matic.svg'
+  },
+  {
+    symbol: 'WBTC',
+    name: 'Wrapped Bitcoin',
+    address: '0x1bfd67037b42cf73acf2047067bd4f2c47d9bfd6',
+    decimals: 8,
+    logoURI: '/token-icons/wbtc.png'
+  },
   {
     symbol: 'USDC',
     name: 'USD Coin',
@@ -133,18 +189,18 @@ const POLYGON_TOKENS: TokenOption[] = [
     address: '0xc2132D05D31c914a87C6611C10748AEb04B58e8F',
     decimals: 6,
     logoURI: '/token-icons/usdt.svg'
-  },
-  {
-    symbol: 'WBTC',
-    name: 'Wrapped Bitcoin',
-    address: '0x1bfd67037b42cf73acf2047067bd4f2c47d9bfd6',
-    decimals: 8,
-    logoURI: '/token-icons/wbtc.png'
   }
 ];
 
 // ── Monad ─────────────────────────────────────────────────
 const MONAD_TOKENS: TokenOption[] = [
+  {
+    symbol: 'MON',
+    name: 'Monad',
+    address: NATIVE_TOKEN_ADDRESS,
+    decimals: 18,
+    logoURI: '/token-icons/mon.png'
+  },
   {
     symbol: 'WBTC',
     name: 'Wrapped Bitcoin',
@@ -160,37 +216,32 @@ const MONAD_TOKENS: TokenOption[] = [
 // engine recognizes them.
 
 const BITLAYER_TOKENS: TokenOption[] = [
-  { symbol: 'BTC',  name: 'Bitcoin',     address: NATIVE_TOKEN_ADDRESS, decimals: 18, logoURI: '/token-icons/wbtc.png' },
-  { symbol: 'USDC', name: 'USD Coin',    address: '0xf8C374CE88A3BE3d374e8888349C7768B607c755', decimals: 6, logoURI: '/token-icons/usdc.svg' },
-  { symbol: 'USDT', name: 'Tether USD',  address: '0xfe9f969faf8ad72a83b761138bf25de87eff9dd2', decimals: 6, logoURI: '/token-icons/usdt.svg' }
+  { symbol: 'BTC', name: 'Bitcoin', address: NATIVE_TOKEN_ADDRESS, decimals: 18, logoURI: '/token-icons/btc.png' },
 ];
 
 const MERLIN_TOKENS: TokenOption[] = [
-  { symbol: 'BTC',  name: 'Bitcoin',     address: NATIVE_TOKEN_ADDRESS, decimals: 18, logoURI: '/token-icons/wbtc.png' },
-  // Merlin's USDC/USDT are M-USDC / M-USDT (Meson-bridged variants); routed via Meson backend
-  { symbol: 'USDC', name: 'M-USDC',      address: '0xb880fd278198bd590252621d4cd071b1842e9bcd', decimals: 6, logoURI: '/token-icons/usdc.svg' },
-  { symbol: 'USDT', name: 'M-USDT',      address: '0x3a01a5f50c8eaf82f2a72ee3a30f44d2f0e9e7e0', decimals: 6, logoURI: '/token-icons/usdt.svg' }
+  { symbol: 'MERL', name: 'Merlin',      address: '0x5c46bff4b38dc1eae09c5bac65872a1d8bc87378', decimals: 18, logoURI: '/token-icons/merl.png'  },
+  { symbol: 'WBTC', name: 'Wrapped BTC', address: '0xf6d226f9dc15d9bb51182815b320d3fbe324e1ba', decimals: 8,  logoURI: '/token-icons/wbtc.png' },
+  { symbol: 'BTC',  name: 'Bitcoin',     address: NATIVE_TOKEN_ADDRESS,                        decimals: 18, logoURI: '/token-icons/btc.png'  },
 ];
 
 const CORE_TOKENS: TokenOption[] = [
-  { symbol: 'USDC', name: 'USD Coin',    address: '0xa4151B2B3e269645181dCcF2D426cE75fcbDeca9', decimals: 6, logoURI: '/token-icons/usdc.svg' },
-  { symbol: 'USDT', name: 'Tether USD',  address: '0x900101d06A7426441Ae63e9AB3B9b0F63Be145F1', decimals: 6, logoURI: '/token-icons/usdt.svg' }
+  { symbol: 'CORE', name: 'Core', address: NATIVE_TOKEN_ADDRESS, decimals: 18, logoURI: '/token-icons/core.png' },
 ];
 
 const B2_NETWORK_TOKENS: TokenOption[] = [
-  { symbol: 'BTC',  name: 'Bitcoin',     address: NATIVE_TOKEN_ADDRESS, decimals: 18, logoURI: '/token-icons/wbtc.png' },
-  { symbol: 'USDC', name: 'USD Coin',    address: '0x6c47db95e8d54daedd58e02e1c0e83b25b7e2e0a', decimals: 6, logoURI: '/token-icons/usdc.svg' },
-  { symbol: 'USDT', name: 'Tether USD',  address: '0xb1bb86c3eb1d65a5e72f6c3b8d99e0c9bcf4b4f4', decimals: 6, logoURI: '/token-icons/usdt.svg' }
+  { symbol: 'BTC',  name: 'Bitcoin',     address: NATIVE_TOKEN_ADDRESS,                        decimals: 18, logoURI: '/token-icons/btc.png' },
+  { symbol: 'WBTC', name: 'Wrapped BTC', address: '0x4200000000000000000000000000000000000006', decimals: 8,  logoURI: '/token-icons/wbtc.png' },
 ];
 
 const ROOTSTOCK_TOKENS: TokenOption[] = [
-  { symbol: 'RBTC', name: 'Smart Bitcoin', address: NATIVE_TOKEN_ADDRESS, decimals: 18, logoURI: '/chains/rootstock.svg' },
-  { symbol: 'WBTC', name: 'Wrapped BTC',   address: '0x542fda317318ebf1d3deaf76e0b632741a7e677d', decimals: 18, logoURI: '/token-icons/wbtc.png' }
+  { symbol: 'RBTC', name: 'Rootstock Bitcoin', address: NATIVE_TOKEN_ADDRESS, decimals: 18, logoURI: '/token-icons/rbtc.png' },
+  { symbol: 'WRBTC', name: 'Wrapped RBTC', address: '0x542fda317318ebf1d3deaf76e0b632741a7e677d', decimals: 18, logoURI: '/token-icons/rbtc.png' }
 ];
 
 const BOB_TOKENS: TokenOption[] = [
-  { symbol: 'WBTC', name: 'Wrapped Bitcoin', address: '0x03c7054bcb39f7b2e5b2c7acb37583e32d70cfa3', decimals: 8, logoURI: '/token-icons/wbtc.png' },
-  { symbol: 'USDC', name: 'USDC.e',      address: '0xe75d0fb2c24a55ca1e3f96781a2bcc7bdba058f0', decimals: 6, logoURI: '/token-icons/usdc.svg' }
+  { symbol: 'UNIBTC', name: 'uniBTC',      address: '0x236f8c0a61da474db21b693fb2ea7aab0c803894', decimals: 8,  logoURI: '/token-icons/unibtc.png' },
+  { symbol: 'WBTC',   name: 'Wrapped BTC', address: '0x0555e30da8f98308edb960aa94c0db47230d2b9c', decimals: 8,  logoURI: '/token-icons/wbtc.png'   },
 ];
 
 export const CHAINS: ChainOption[] = [
@@ -198,7 +249,7 @@ export const CHAINS: ChainOption[] = [
     key: 'ethereum',
     name: 'Ethereum',
     chainId: 1,
-    logoURI: '/token-icons/eth.svg',
+    logoURI: '/chains/ethereum.svg',
     tokens: ETHEREUM_TOKENS
   },
   {
@@ -209,18 +260,18 @@ export const CHAINS: ChainOption[] = [
     tokens: BASE_TOKENS
   },
   {
+    key: 'bob',
+    name: 'BOB',
+    chainId: 60808,
+    logoURI: '/chains/bob.png',
+    tokens: BOB_TOKENS
+  },
+  {
     key: 'bsc',
     name: 'BNB Chain',
     chainId: 56,
     logoURI: '/chains/bnb.svg',
     tokens: BSC_TOKENS
-  },
-  {
-    key: 'polygon',
-    name: 'Polygon',
-    chainId: 137,
-    logoURI: '/chains/polygon.svg',
-    tokens: POLYGON_TOKENS
   },
   {
     key: 'monad',
@@ -230,47 +281,47 @@ export const CHAINS: ChainOption[] = [
     tokens: MONAD_TOKENS
   },
   {
+    key: 'polygon',
+    name: 'Polygon',
+    chainId: 137,
+    logoURI: '/chains/polygon.svg',
+    tokens: POLYGON_TOKENS
+  },
+  {
     key: 'bitlayer',
     name: 'Bitlayer',
     chainId: 200901,
-    logoURI: '/chains/bitlayer.svg',
+    logoURI: '/chains/bitlayer.png',
     tokens: BITLAYER_TOKENS
-  },
-  {
-    key: 'merlin',
-    name: 'Merlin',
-    chainId: 4200,
-    logoURI: '/chains/merlin.svg',
-    tokens: MERLIN_TOKENS
-  },
-  {
-    key: 'core',
-    name: 'Core',
-    chainId: 1116,
-    logoURI: '/chains/core.svg',
-    tokens: CORE_TOKENS
   },
   {
     key: 'b2-network',
     name: 'B² Network',
     chainId: 223,
-    logoURI: '/chains/b2-network.svg',
+    logoURI: '/chains/b2-network.png',
     tokens: B2_NETWORK_TOKENS
   },
   {
     key: 'rootstock',
     name: 'Rootstock',
     chainId: 30,
-    logoURI: '/chains/rootstock.svg',
+    logoURI: '/chains/rootstock.png',
     tokens: ROOTSTOCK_TOKENS
   },
   {
-    key: 'bob',
-    name: 'BOB',
-    chainId: 60808,
-    logoURI: '/chains/bob.svg',
-    tokens: BOB_TOKENS
-  }
+    key: 'core',
+    name: 'Core',
+    chainId: 1116,
+    logoURI: '/chains/core.png',
+    tokens: CORE_TOKENS
+  },
+  {
+    key: 'merlin',
+    name: 'Merlin',
+    chainId: 4200,
+    logoURI: '/chains/merlin.jpeg',
+    tokens: MERLIN_TOKENS
+  },
 ];
 
 export const CHAIN_BY_KEY: Record<ChainKey, ChainOption> = Object.fromEntries(
