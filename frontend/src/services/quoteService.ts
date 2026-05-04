@@ -15,7 +15,7 @@ export interface QuoteRequest {
 
 export interface QuoteResult {
   id: string;
-  provider: 'lifi-api' | 'debridge-api' | 'squid-api' | 'relay-api' | 'across-api' | 'mock';
+  provider: 'lifi-api' | 'debridge-api' | 'squid-api' | 'relay-api' | 'across-api' | 'symbiosis-api' | 'meson-api' | 'mock';
   /** bridgekitty-backend trackingId returned from /execute (e.g. "lifi:0xabc...").
    *  Populated by `executeQuote()`; undefined on the bare quote returned from /quote. */
   trackingId?: string;
@@ -43,7 +43,7 @@ export interface QuoteResult {
   raw?: unknown;
 }
 
-type ProviderKey = 'lifi' | 'debridge' | 'squid' | 'relay' | 'across';
+type ProviderKey = 'lifi' | 'debridge' | 'squid' | 'relay' | 'across' | 'symbiosis' | 'meson';
 
 const PROVIDER_API_KEY: Record<ProviderKey, QuoteResult['provider']> = {
   lifi: 'lifi-api',
@@ -51,6 +51,8 @@ const PROVIDER_API_KEY: Record<ProviderKey, QuoteResult['provider']> = {
   squid: 'squid-api',
   relay: 'relay-api',
   across: 'across-api',
+  symbiosis: 'symbiosis-api',
+  meson: 'meson-api',
 };
 
 function normalizeBackendName(name: string): ProviderKey | null {
@@ -60,6 +62,8 @@ function normalizeBackendName(name: string): ProviderKey | null {
   if (lower.startsWith('squid')) return 'squid';
   if (lower.startsWith('relay')) return 'relay';
   if (lower.startsWith('across')) return 'across';
+  if (lower.startsWith('symbiosis')) return 'symbiosis';
+  if (lower.startsWith('meson')) return 'meson';
   return null;
 }
 

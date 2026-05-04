@@ -317,7 +317,9 @@ export function SwapView({
   // ── Quote panel state ──
   const anyQuote = PROVIDER_META.some(({ key }) => quotes[key] != null);
   const showLoadingCard = isQuoting && !anyQuote && isValidSwapInput(draft);
-  const showQuotesPanel = showLoadingCard || anyQuote;
+  // All providers responded but none returned a route.
+  const noQuotesReturned = !isQuoting && !anyQuote && isValidSwapInput(draft) && Object.keys(quotes).length > 0;
+  const showQuotesPanel = showLoadingCard || anyQuote || noQuotesReturned;
 
   /** ID of the quote with the lowest fee — independent of user selection. */
   const objectivelyBestId = useMemo(() => {
@@ -392,6 +394,8 @@ export function SwapView({
             <img src="/providers/debridge.png" alt="deBridge" className="hf-swap-powered-logo" />
             <img src="/providers/relay.png" alt="Relay" className="hf-swap-powered-logo" />
             <img src="/providers/across.png" alt="Across" className="hf-swap-powered-logo" />
+            <img src="/providers/symbiosis.png" alt="Symbiosis" className="hf-swap-powered-logo" />
+            <img src="/providers/meson.png" alt="Meson" className="hf-swap-powered-logo" />
           </div>
 
           {/* Quote Refresh Countdown */}
@@ -453,7 +457,12 @@ export function SwapView({
                   className="hf-amount-input"
                   value={truncateDisplay(draft.amount)}
                   onChange={(e) => {
-                    setDraft((c) => ({ ...c, amount: e.target.value }));
+                    // Strip anything that isn't a digit or decimal point,
+                    // and collapse multiple dots down to one.
+                    const val = e.target.value
+                      .replace(/[^0-9.]/g, '')
+                      .replace(/(\..*)\./g, '$1');
+                    setDraft((c) => ({ ...c, amount: val }));
                     onTxStatusClear();
                   }}
                   inputMode="decimal"
@@ -762,6 +771,14 @@ export function SwapView({
                   <div className="hf-route-loading-card">
                     <Loader2 size={12} className="hf-spin" />
                     <span>Finding best route…</span>
+                  </div>
+                ) : noQuotesReturned ? (
+                  <div className="hf-no-quotes">
+                    <span className="hf-no-quotes-emoji">😿</span>
+                    <p className="hf-no-quotes-title">No routes found</p>
+                    <p className="hf-no-quotes-sub">
+                      All 7 providers came up empty for this pair. Try a different token, chain, or amount.
+                    </p>
                   </div>
                 ) : (
                   sortedRoutes.map(({ key, label, logo, pQuote, pLoading, definitivelyFailed }) => {

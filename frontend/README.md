@@ -5,7 +5,6 @@ The web app. Handles wallet connection, cross-chain swap quotes, and transaction
 | Environment | URL |
 |---|---|
 | Production | [bridgekitty.persistence.one](https://bridgekitty.persistence.one) |
-| Demo | [bridgekittydemo.vercel.app](https://bridgekittydemo.vercel.app) |
 | Local dev | http://localhost:5173 |
 
 For the project overview, architecture diagram, and end-to-end flow, see [the root README](../README.md). For the API surface this app talks to, see [`backend/README.md`](../backend/README.md).
@@ -81,7 +80,7 @@ VITE_BRIDGEKITTY_QUOTE_PROXY_URL=
 |---|:---:|---|---|
 | `VITE_BRIDGEKITTY_API_BASE_URL` | yes | `http://localhost:8080/api` | Where the frontend sends quote/wallet/swap/status calls. In production this is `https://api.bridgekitty.persistence.one/api`. |
 | `VITE_PRIVY_APP_ID` | no | (empty) | Privy app ID for wallet auth. Without it, the app uses a demo-wallet fallback so you can develop without creating a Privy account. Get one from [dashboard.privy.io](https://dashboard.privy.io). |
-| `VITE_ALCHEMY_API_KEY` | no | (empty) | Alchemy API key for on-chain balance reads on Ethereum, Base, and Polygon. Without it, the app falls back to public RPCs (slower, sometimes rate-limited). BNB Chain and Monad always use public RPCs (Alchemy doesn't cover them). Get one from [alchemy.com](https://alchemy.com). |
+| `VITE_ALCHEMY_API_KEY` | no | (empty) | Alchemy API key for on-chain balance reads on Ethereum, Base, and Polygon. Without it, the app falls back to public RPCs (slower, sometimes rate-limited). All other chains (BNB Chain, Monad, BOB, Bitlayer, B² Network, Rootstock, Core, Merlin) always use public RPCs. Get one from [alchemy.com](https://alchemy.com). |
 | `VITE_COINGECKO_API_KEY` | no | (empty) | CoinGecko demo key for USD price lookups. Without it, anonymous CoinGecko works (more aggressive rate limits). |
 | `VITE_CMC_API_KEY` | no | (empty) | CoinMarketCap key. Used as a fallback if CoinGecko is unavailable. |
 | `VITE_BRIDGEKITTY_QUOTE_PROXY_URL` | no | (empty) | Optional override that bypasses `VITE_BRIDGEKITTY_API_BASE_URL` for the quotes endpoint specifically. Useful if you want quotes routed through a different proxy than the rest of the API. |
@@ -95,7 +94,7 @@ Single-page app. All views are React state, no URL routing.
 | View | What it does |
 |------|-------------|
 | **Landing** ([`LandingView.tsx`](src/components/LandingView.tsx)) | Entry point. Pick Human or Agent mode. |
-| **Swap** ([`SwapView.tsx`](src/components/SwapView.tsx)) | Cross-chain swap interface. Compares quotes from LI.FI, Squid, deBridge, Relay, and Across via a single backend call. Shows fees, ETA, expandable per-route detail (DLN solver fee, min received, rate, ETA, via). Supports MAX, 50%, and "Fit gas" amount shortcuts. |
+| **Swap** ([`SwapView.tsx`](src/components/SwapView.tsx)) | Cross-chain swap interface. Compares quotes from LI.FI, Squid, deBridge, Relay, Across, Symbiosis, and Meson via a single backend call. Shows fees, ETA, expandable per-route detail (DLN solver fee, min received, rate, ETA, via). Supports MAX, 50%, and "Fit gas" amount shortcuts. |
 | **Agent** ([`AgentView.tsx`](src/components/AgentView.tsx)) | MCP server docs. Setup guides for Claude Desktop, Claude Code, and any HTTP agent. |
 | **Stats** ([`StatsView.tsx`](src/components/StatsView.tsx)) | Protocol analytics. Swap volume and unique users over 7/15/30/all-time periods. |
 
@@ -230,9 +229,15 @@ When the user clicks **Bridge now**:
 |-------|---------:|--------------|
 | Ethereum | 1 | ETH |
 | Base | 8453 | ETH |
+| BOB | 60808 | ETH |
 | BNB Chain | 56 | BNB |
-| Polygon | 137 | POL |
 | Monad | 143 | MON |
+| Polygon | 137 | POL |
+| Bitlayer | 200901 | BTC |
+| B² Network | 223 | BTC |
+| Rootstock | 30 | RBTC |
+| Core | 1116 | CORE |
+| Merlin | 4200 | BTC |
 
 Tokens are defined in [`src/lib/chains.ts`](src/lib/chains.ts). To add a new token, add an entry there and a CoinGecko/CMC slug mapping in [`priceService.ts`](src/services/priceService.ts).
 

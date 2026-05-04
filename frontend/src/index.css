@@ -1915,6 +1915,7 @@ input, select, textarea, button { font-family: inherit; }
   height: 32px;
   flex-shrink: 0;
   border-radius: 50%;
+  object-fit: cover;
 }
 
 .hf-dropdown-item-info {
@@ -2020,6 +2021,35 @@ input, select, textarea, button { font-family: inherit; }
   border-radius: var(--hf-radius-xs);
   font-size: 0.7rem;
   color: var(--hf-text-muted);
+}
+
+/* No-quotes empty state */
+.hf-no-quotes {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 1.5rem 1rem;
+  background: var(--hf-bg-surface);
+  border: 1px solid var(--hf-border);
+  border-radius: var(--hf-radius-xs);
+  text-align: center;
+}
+.hf-no-quotes-emoji {
+  font-size: 1.6rem;
+  line-height: 1;
+}
+.hf-no-quotes-title {
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--hf-text-primary);
+}
+.hf-no-quotes-sub {
+  margin: 0;
+  font-size: 0.67rem;
+  color: var(--hf-text-muted);
+  line-height: 1.45;
 }
 
 /* Base route card */
