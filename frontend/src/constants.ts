@@ -8,8 +8,8 @@ export const IS_PROD = import.meta.env.PROD;
 export const DEFAULT_DRAFT: SwapDraft = {
   fromChain: 'ethereum',
   toChain: 'base',
-  fromTokenSymbol: 'ETH',
-  toTokenSymbol: 'ETH',
+  fromTokenSymbol: 'WBTC',
+  toTokenSymbol: 'cbBTC',
   amount: ''
 };
 
@@ -27,8 +27,8 @@ export const PROVIDER_META: { key: ProviderKey; label: string; logo: string }[] 
   { key: 'debridge',  label: 'deBridge',  logo: '/providers/debridge.png'  },
   { key: 'relay',     label: 'Relay',     logo: '/providers/relay.png'     },
   { key: 'across',    label: 'Across',    logo: '/providers/across.png'    },
-  { key: 'symbiosis', label: 'Symbiosis', logo: '/providers/symbiosis.svg' },
-  { key: 'meson',     label: 'Meson',     logo: '/providers/meson.svg'     },
+  { key: 'symbiosis', label: 'Symbiosis', logo: '/providers/symbiosis.png' },
+  { key: 'meson',     label: 'Meson',     logo: '/providers/meson.png'     },
 ];
 
 export const BLOCK_EXPLORER: Record<ChainKey, string> = {
