@@ -90,7 +90,7 @@ export function LandingView({ onHumanClick, onAgentClick }: LandingViewProps) {
           </span>
         </h1>
         <p className="hf-hero-sub">
-          With BridgeKitty, Cross-Chain Swap Aggregator.
+          With BridgeKitty, BTCFi Swap Aggregator.
         </p>
       </div>
 
