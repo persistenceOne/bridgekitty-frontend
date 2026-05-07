@@ -245,9 +245,64 @@ async function runWithConcurrency<T>(
   await Promise.all(runners);
 }
 
+/** Maximum allowed drift between two RPCs reporting the same balance, as a
+ *  fraction of the larger value. Public RPCs occasionally trail block height
+ *  by a block or two, which is fine; gross disagreement is what we want to
+ *  catch. */
+const RPC_AGREEMENT_TOLERANCE = 0.01; // 1%
+
+/** Decide whether two balance maps agree closely enough to trust either one. */
+function balancesAgree(a: Record<string, bigint>, b: Record<string, bigint>): boolean {
+  const keys = new Set([...Object.keys(a), ...Object.keys(b)]);
+  for (const key of keys) {
+    const av = a[key];
+    const bv = b[key];
+    if (av == null || bv == null) {
+      // One RPC was missing this token entirely — treat as disagreement.
+      return false;
+    }
+    if (av === bv) continue;
+    // Compute relative drift against the larger of the two.
+    const larger = av > bv ? av : bv;
+    const smaller = av > bv ? bv : av;
+    if (larger === 0n) continue; // both zero handled above; safety
+    const diff = larger - smaller;
+    // diff/larger > tolerance  ⇔  diff * 1/tolerance > larger
+    if (diff * BigInt(Math.round(1 / RPC_AGREEMENT_TOLERANCE)) > larger) {
+      return false;
+    }
+  }
+  return true;
+}
+
+const PUBLIC_RPCS_BY_CHAIN: Partial<Record<ChainKey, string>> = {
+  ethereum: 'https://eth.llamarpc.com',
+  base:     'https://base.llamarpc.com',
+  polygon:  'https://polygon.llamarpc.com'
+};
+
+/** Build the ordered list of public RPCs we'll consult for a chain. */
+function buildRpcCandidates(chainKey: ChainKey): string[] {
+  return [
+    ...(FALLBACK_RPC_BY_CHAIN[chainKey] ?? []),
+    ...(PUBLIC_RPCS_BY_CHAIN[chainKey] ? [PUBLIC_RPCS_BY_CHAIN[chainKey]!] : [])
+  ];
+}
+
 /**
  * Fetch all token balances for a chain.
- * Uses Alchemy batch API when available, falls back to individual RPC calls.
+ *
+ * Strategy:
+ *   1. If Alchemy is configured for this chain, use it as the source of
+ *      truth (one retry on failure). Alchemy is paid infrastructure and
+ *      far less prone to MITM than free public RPCs.
+ *   2. Otherwise, query the top two public RPCs in parallel and require
+ *      agreement (within {@link RPC_AGREEMENT_TOLERANCE}). On agreement,
+ *      return the result. On gross disagreement (a hijacked or stale RPC),
+ *      return an empty map so the UI treats the balance as unknown rather
+ *      than gating decisions on tampered data.
+ *   3. If only one RPC is configured / responsive, fall back to that
+ *      single result with a warning logged.
  */
 export async function fetchTokenBalancesForChain(
   chainKey: ChainKey,
@@ -256,35 +311,59 @@ export async function fetchTokenBalancesForChain(
 ): Promise<Record<string, bigint>> {
   const alchemyUrl = getAlchemyUrl(chainKey);
   if (alchemyUrl) {
+    // First attempt
     try {
       return await fetchBalancesViaAlchemy(alchemyUrl, walletAddress, tokens);
     } catch {
+      // Single retry — transient network blips shouldn't push us to public RPCs.
+      try {
+        return await fetchBalancesViaAlchemy(alchemyUrl, walletAddress, tokens);
+      } catch {
+        // Fall through to public RPC fallbacks.
+      }
     }
   }
 
-  // Build the candidate RPC list: explicit fallbacks first, then the
-  // Alchemy-supported chain's public RPC as a last resort.
-  const publicRpcs: Partial<Record<ChainKey, string>> = {
-    ethereum: 'https://eth.llamarpc.com',
-    base:     'https://base.llamarpc.com',
-    polygon:  'https://polygon.llamarpc.com'
-  };
+  const candidates = buildRpcCandidates(chainKey);
+  if (candidates.length === 0 || tokens.length === 0) return {};
 
-  const candidates = [
-    ...(FALLBACK_RPC_BY_CHAIN[chainKey] ?? []),
-    ...(publicRpcs[chainKey] ? [publicRpcs[chainKey]!] : [])
-  ];
+  // Cross-validate when we have at least two RPCs: agreeing public nodes
+  // are far harder to coordinate-tamper with than a single one.
+  if (candidates.length >= 2) {
+    const [primary, secondary] = candidates;
+    const [primaryResult, secondaryResult] = await Promise.allSettled([
+      fetchBalancesViaRpc(primary, walletAddress, tokens),
+      fetchBalancesViaRpc(secondary, walletAddress, tokens),
+    ]);
 
-  // Try each candidate in order. A candidate "succeeds" if it returns at
-  // least one balance — `fetchBalancesViaRpc` swallows per-token errors, so
-  // we also treat a fully-empty result after a non-empty token list as a
-  // silent failure and try the next RPC.
-  for (const rpcUrl of candidates) {
+    const primaryOk =
+      primaryResult.status === 'fulfilled' && Object.keys(primaryResult.value).length > 0;
+    const secondaryOk =
+      secondaryResult.status === 'fulfilled' && Object.keys(secondaryResult.value).length > 0;
+
+    if (primaryOk && secondaryOk) {
+      if (balancesAgree(primaryResult.value, secondaryResult.value)) {
+        return primaryResult.value;
+      }
+      console.warn(
+        `[balanceService] RPCs disagree for ${chainKey} — treating balance as unknown.`
+      );
+      return {};
+    }
+
+    // Only one of the top two responded — accept it (better than nothing,
+    // matches the prior behaviour of a single-RPC chain).
+    if (primaryOk && primaryResult.status === 'fulfilled') return primaryResult.value;
+    if (secondaryOk && secondaryResult.status === 'fulfilled') return secondaryResult.value;
+
+    // Neither returned anything useful: fall through to the next candidate.
+  }
+
+  // Single-candidate path (or both top candidates failed): try each in order.
+  for (const rpcUrl of candidates.slice(candidates.length >= 2 ? 2 : 0)) {
     try {
       const balances = await fetchBalancesViaRpc(rpcUrl, walletAddress, tokens);
-      if (tokens.length === 0 || Object.keys(balances).length > 0) {
-        return balances;
-      }
+      if (Object.keys(balances).length > 0) return balances;
     } catch {
       // fall through to next candidate
     }
@@ -314,16 +393,7 @@ export async function fetchSingleTokenBalance(
     }
   }
 
-  const publicRpcs: Partial<Record<ChainKey, string>> = {
-    ethereum: 'https://eth.llamarpc.com',
-    base:     'https://base.llamarpc.com',
-    polygon:  'https://polygon.llamarpc.com'
-  };
-
-  const rpcs = [
-    ...(FALLBACK_RPC_BY_CHAIN[chainKey] ?? []),
-    ...(publicRpcs[chainKey] ? [publicRpcs[chainKey]!] : [])
-  ];
+  const rpcs = buildRpcCandidates(chainKey);
 
   for (const rpcUrl of rpcs) {
     try {

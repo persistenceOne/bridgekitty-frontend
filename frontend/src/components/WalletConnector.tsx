@@ -1,7 +1,6 @@
 import { useEffect, useMemo } from 'react';
 import { LogOut, Wallet2 } from 'lucide-react';
 import { usePrivy, useWallets } from '@privy-io/react-auth';
-import { resolveApiBaseUrl } from '../lib/apiBaseUrl';
 
 type EthereumProvider = {
   request: (args: { method: string; params?: unknown[] }) => Promise<unknown>;
@@ -79,18 +78,11 @@ export function PrivyWalletConnector({
   const walletAddress = activeWallet?.address ?? getWalletAddress(user);
 
   useEffect(() => {
+    // We deliberately do NOT POST the wallet address to the backend here.
+    // Connecting a wallet alone shouldn't link the user's address to their
+    // IP server-side — registration is deferred until the user actually
+    // commits to a swap (handled in useSwapExecution).
     onWalletAddress(walletAddress ?? null);
-
-    if (walletAddress) {
-      const base = resolveApiBaseUrl();
-      if (base) {
-        fetch(`${base}/wallets`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ address: walletAddress })
-        }).catch(() => {});
-      }
-    }
   }, [walletAddress, onWalletAddress]);
 
   useEffect(() => {

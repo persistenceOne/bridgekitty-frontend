@@ -59,6 +59,29 @@ export function useSwapExecution(
     );
   }, []);
 
+  /** Tracks wallets we've already registered with the backend in THIS session,
+   *  so a user can swap multiple times without us re-POSTing /wallets each time.
+   *  Registration is deferred until the user is about to bridge — browsing-only
+   *  visitors never get their address registered. */
+  const registeredWalletsRef = useRef<Set<string>>(new Set());
+
+  const ensureWalletRegistered = useCallback(async (address: string) => {
+    const key = address.toLowerCase();
+    if (registeredWalletsRef.current.has(key)) return;
+    registeredWalletsRef.current.add(key);
+    try {
+      await fetch(`${API_BASE_URL}/wallets`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ address }),
+      });
+    } catch {
+      // Non-critical — backend can also derive the wallet from /swaps. If the
+      // POST failed, drop the cache entry so we retry on the next swap.
+      registeredWalletsRef.current.delete(key);
+    }
+  }, []);
+
   const recordSwap = useCallback(async (
     txHash: string,
     address: string,
@@ -135,24 +158,46 @@ export function useSwapExecution(
       setError('');
       setTxStatus(null);
 
+      // Privacy: register the wallet with the backend at the moment the user
+      // commits to bridging — not on first connect. Browsing-only visitors
+      // never get their address linked to their IP server-side. Best-effort,
+      // does not block the swap.
+      void ensureWalletRegistered(walletBridge.address);
+
       // Two-step flow: bridgekitty-backend's /quote returns quote metadata only;
       // /execute builds the unsigned tx for the chosen quoteId.
       let executed = await executeQuote(bestQuote.id);
 
-      // Defence-in-depth: confirm the calldata actually references our wallet.
-      // The backend already does this server-side, but two layers is fine.
-      const walletNeedle = walletBridge.address.toLowerCase().replace(/^0x/, '');
-      const calldata = (executed.transactionRequest.data ?? '').toLowerCase();
-      if (calldata.length > 10 && walletNeedle && !calldata.includes(walletNeedle)) {
-        setError(
-          'Safety check failed: this quote does not appear to route funds to your connected wallet. Refresh quotes and try again.'
-        );
+      // Validate the unsigned transaction the backend returned BEFORE any
+      // wallet prompt. We do NOT do a substring "wallet needle" check on the
+      // calldata here — it was trivially bypassable (an attacker could pad
+      // the user's address into trailing bytes while pointing the actual
+      // recipient slot elsewhere) and provided false confidence. Instead we
+      // rely on:
+      //   1. backend-side recipient validation,
+      //   2. the strict chainId / value / gasLimit checks below,
+      //   3. the wallet's own confirmation prompt (which renders `to` and
+      //      `value` for the user to inspect).
+      const txValidationError = validateTransactionRequest(
+        { ...executed.transactionRequest, chainId: executed.chainId },
+        {
+          expectedChainId: fromChainId,
+          isNativeSource: isNativeToken(selectedFromToken.address),
+          requestedAmountWei:
+            requestedAmountRaw ?? parseUnits(draft.amount, selectedFromToken.decimals),
+        }
+      );
+      if (txValidationError) {
+        setError(txValidationError);
         return;
       }
 
-      const txValidationError = validateTransactionRequest(executed.transactionRequest);
-      if (txValidationError) {
-        setError(txValidationError);
+      // Approval transaction (when present) must also be on the right chain.
+      if (
+        executed.approvalTransaction &&
+        executed.approvalTransaction.chainId !== fromChainId
+      ) {
+        setError('Approval transaction chain mismatch — refusing to sign.');
         return;
       }
 
@@ -180,6 +225,21 @@ export function useSwapExecution(
         // stale once the approval is mined — re-fetch the bridge tx in that case.
         if (executed.needsPostApprovalBuild) {
           executed = await executeQuote(bestQuote.id);
+          // Re-validate: the backend just returned a fresh tx and we must
+          // not skip the safety checks on the second payload.
+          const refreshError = validateTransactionRequest(
+            { ...executed.transactionRequest, chainId: executed.chainId },
+            {
+              expectedChainId: fromChainId,
+              isNativeSource: isNativeToken(selectedFromToken.address),
+              requestedAmountWei:
+                requestedAmountRaw ?? parseUnits(draft.amount, selectedFromToken.decimals),
+            }
+          );
+          if (refreshError) {
+            setError(refreshError);
+            return;
+          }
         }
         void approvalTxHash;
       } else if (!isNativeToken(selectedFromToken.address)) {
@@ -258,7 +318,7 @@ export function useSwapExecution(
     } finally {
       setIsExecuting(false);
     }
-  }, [walletBridge, fromChainId, startStatusPolling, recordSwap, onPostSwap]);
+  }, [walletBridge, fromChainId, startStatusPolling, recordSwap, onPostSwap, ensureWalletRegistered]);
 
   const clearTxStatus = useCallback(() => setTxStatus(null), []);
   const clearError = useCallback(() => setError(''), []);
