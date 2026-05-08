@@ -204,6 +204,15 @@ export async function getAllSwapQuotes(
     throw new Error('Source and destination tokens must be different for a same-chain swap.');
   }
 
+  // Address-pinned lookup: when the draft carries fromTokenAddress / toToken-
+  // Address (set by TokenSelector when the user picks a long-tail token from
+  // search results), matchToken resolves by lower-cased address first and
+  // only falls back to the symbol if that fails. This is load-bearing — when
+  // a user picks the long-tail USDC LP variant, fromTokenSymbol stays
+  // "USDC" but the address differentiates it from the curated USDC.
+  // The payload below sends fromToken.address / toToken.address directly,
+  // never the request's symbol, so the backend always quotes the exact
+  // token the user selected.
   const fromToken = matchToken(getTokensFor(request.fromChain), request.fromTokenSymbol, request.fromTokenAddress);
   const toToken = matchToken(getTokensFor(request.toChain), request.toTokenSymbol, request.toTokenAddress);
   if (!fromToken || !toToken) {

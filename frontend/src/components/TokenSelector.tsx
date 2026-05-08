@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { ChevronDown, Loader2, X } from 'lucide-react';
 import type { TokenOption, ChainOption } from '../lib/chains';
-import { filterSafe, useSafeAssetsOnly } from '../lib/safeAssets';
+import { filterSafe, setSafeAssetsOnly, useSafeAssetsOnly } from '../lib/safeAssets';
 import { searchTokensApi, type SearchToken } from '../services/tokenSearchService';
 
 interface TokenSelectorProps {
@@ -87,6 +87,10 @@ export function TokenSelector({
   // otherwise we fall back to local filtering on the curated tokens passed in.
   let renderedTokens: TokenOption[] = [];
   let emptyMessage: string | null = null;
+  /** True when safe-mode is hiding everything; UI offers a one-click toggle-
+   *  off in the empty-state row. Reviewer-flagged "filter too aggressive for
+   *  power users" — better than making them hunt for the global toggle. */
+  let hiddenBySafeFilter = false;
 
   if (searchResults !== null) {
     renderedTokens = searchResults;
@@ -102,9 +106,15 @@ export function TokenSelector({
         )
       : candidateTokens;
     if (renderedTokens.length === 0) {
-      const hiddenBySafeFilter = safeAssetsOnly && !lowerSearch && tokens.length > 0;
+      hiddenBySafeFilter = safeAssetsOnly && tokens.length > 0 && filterSafe(tokens, true).length === 0
+        ? true
+        : safeAssetsOnly && !!lowerSearch && filterSafe(tokens, false).some((t) =>
+            t.symbol.toLowerCase().includes(lowerSearch) || t.name.toLowerCase().includes(lowerSearch),
+          );
       emptyMessage = hiddenBySafeFilter
-        ? 'No safe assets on this chain. Turn off "Safe assets only" to see all tokens.'
+        ? lowerSearch
+          ? `No safe assets match "${normalizedSearch}". Show all tokens?`
+          : 'No safe assets on this chain.'
         : 'No token matches that search.';
     }
   }
@@ -207,7 +217,18 @@ export function TokenSelector({
                 <div className="hf-dropdown-empty">{searchError}</div>
               )}
               {!searching && emptyMessage && renderedTokens.length === 0 && !searchError && (
-                <div className="hf-dropdown-empty">{emptyMessage}</div>
+                <div className="hf-dropdown-empty">
+                  {emptyMessage}
+                  {hiddenBySafeFilter && (
+                    <button
+                      type="button"
+                      className="hf-dropdown-empty-action"
+                      onClick={() => setSafeAssetsOnly(false)}
+                    >
+                      Show all tokens
+                    </button>
+                  )}
+                </div>
               )}
             </div>
           </div>

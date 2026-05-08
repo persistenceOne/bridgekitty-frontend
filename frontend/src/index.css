@@ -2026,6 +2026,27 @@ input, select, textarea, button { font-family: inherit; }
   padding: 0.7rem;
 }
 
+.hf-dropdown-empty-action {
+  display: block;
+  margin: 0.4rem auto 0;
+  border: 1px solid var(--hf-primary);
+  border-radius: 999px;
+  background: var(--hf-bg-elevated);
+  color: var(--hf-text-primary);
+  font-family: var(--hf-font-headline);
+  font-size: 0.6rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  padding: 0.3rem 0.65rem;
+  cursor: pointer;
+  transition: background var(--hf-transition), color var(--hf-transition);
+}
+
+.hf-dropdown-empty-action:hover {
+  background: var(--hf-primary);
+  color: var(--hf-primary-text);
+}
+
 /* ─── Switch/Swap Direction Button ───────────────────── */
 
 .hf-prefill-note {

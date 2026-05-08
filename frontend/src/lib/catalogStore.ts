@@ -1,9 +1,17 @@
 import { useSyncExternalStore } from 'react';
 import { resolveApiBaseUrl } from './apiBaseUrl';
 import type { Chain, Token } from './catalog';
+import { FALLBACK_CATALOG } from './catalog.fallback';
 
 const STORAGE_KEY = 'bk.catalog';
+/** Bump this when the persisted snapshot shape changes. The reader runs the
+ *  migration chain in `migrateSnapshot()`; older versions fall through to
+ *  empty state and trigger a fresh fetch. */
 const SNAPSHOT_VERSION = 1;
+/** Hard ceiling on the /catalog fetch. Above this we abort and fall through
+ *  to the cached snapshot or the bundled fallback so the UI never gets stuck
+ *  on "Loading…" — reviewer-flagged graceful-degradation gap. */
+const CATALOG_FETCH_TIMEOUT_MS = 8000;
 
 interface CatalogState {
   chains: Chain[];
@@ -65,23 +73,42 @@ function rebuildMerged(
   return out;
 }
 
+/**
+ * Try to upgrade an older persisted snapshot to the current SNAPSHOT_VERSION.
+ * Currently no migrations are defined — version 1 is the first published
+ * shape. When we bump SNAPSHOT_VERSION, add a case here:
+ *
+ *   if (fromVersion === 1) return migrate1to2(parsed);
+ *
+ * Returning null tells the caller to drop the snapshot (an empty state
+ * will trigger a fresh /catalog fetch). Reviewer-requested escape hatch so
+ * version bumps don't silently nuke every user's cached catalog.
+ */
+function migrateSnapshot(_parsed: unknown, _fromVersion: number): PersistedSnapshot | null {
+  return null;
+}
+
 function readPersisted(): CatalogState {
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
     if (!raw) return emptyState();
     const parsed = JSON.parse(raw) as PersistedSnapshot;
-    if (parsed.v !== SNAPSHOT_VERSION || !Array.isArray(parsed.chains)) {
+    let snapshot: PersistedSnapshot | null = parsed;
+    if (parsed.v !== SNAPSHOT_VERSION) {
+      snapshot = migrateSnapshot(parsed, parsed.v);
+    }
+    if (!snapshot || !Array.isArray(snapshot.chains)) {
       return emptyState();
     }
-    const tokensByChainKey = new Map(Object.entries(parsed.tokensByChainKey));
+    const tokensByChainKey = new Map(Object.entries(snapshot.tokensByChainKey));
     const extras = new Map<string, Token[]>();
     return {
-      chains: parsed.chains,
+      chains: snapshot.chains,
       tokensByChainKey,
       extraTokensByChainKey: extras,
       mergedByChainKey: rebuildMerged(tokensByChainKey, extras),
-      ready: parsed.chains.length > 0,
-      fetchedAt: parsed.fetchedAt,
+      ready: snapshot.chains.length > 0,
+      fetchedAt: snapshot.fetchedAt,
     };
   } catch {
     return emptyState();
@@ -112,14 +139,39 @@ function persist(next: CatalogState) {
 }
 
 let inflight: Promise<void> | null = null;
+/** True after `loadCatalog()` has had to install the bundled fallback because
+ *  there was no cached snapshot AND the network fetch failed. Surfaced via
+ *  `useUsingFallbackCatalog()` so the UI can banner "offline catalog" state. */
+let usingFallback = false;
+
+function applyFallbackIfNeeded(): void {
+  if (state.ready) return;
+  const tokensByChainKey = new Map<string, Token[]>();
+  for (const [k, v] of Object.entries(FALLBACK_CATALOG.tokensByChainKey)) {
+    tokensByChainKey.set(k, v);
+  }
+  const extras = state.extraTokensByChainKey;
+  state = {
+    chains: FALLBACK_CATALOG.chains,
+    tokensByChainKey,
+    extraTokensByChainKey: extras,
+    mergedByChainKey: rebuildMerged(tokensByChainKey, extras),
+    ready: true,
+    fetchedAt: null,
+  };
+  usingFallback = true;
+  emit();
+}
 
 export async function loadCatalog(): Promise<void> {
   if (inflight) return inflight;
   inflight = (async () => {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), CATALOG_FETCH_TIMEOUT_MS);
     try {
       const base = resolveApiBaseUrl();
       const url = `${base}/catalog`;
-      const response = await fetch(url);
+      const response = await fetch(url, { signal: controller.signal });
       if (!response.ok) throw new Error(`Catalog fetch failed (${response.status})`);
       const data = (await response.json()) as CatalogResponse;
       const tokensByChainKey = new Map<string, Token[]>();
@@ -137,15 +189,25 @@ export async function loadCatalog(): Promise<void> {
         ready: (data.chains ?? []).length > 0,
         fetchedAt,
       };
+      usingFallback = false;
       persist(state);
       emit();
     } catch (err) {
-      // If we have a cached snapshot, keep it. Otherwise stay un-ready and
-      // let the UI surface a retry.
-      if (!state.ready) emit();
+      // Three failure modes converge here:
+      //   - Network down  → AbortError or TypeError
+      //   - Backend 5xx   → thrown above
+      //   - Timeout fired → AbortError
+      // If we already have a usable snapshot (from localStorage or a prior
+      // successful fetch), keep it — better stale than blank.
+      // Otherwise install the bundled fallback so the UI never wedges on
+      // "Loading…" indefinitely. This addresses the reviewer-flagged gap
+      // where backend unavailability blocked the swap form forever.
+      if (!state.ready) applyFallbackIfNeeded();
+      else emit();
       // eslint-disable-next-line no-console
-      console.warn('[catalog] load failed', err);
+      console.warn('[catalog] load failed; using ' + (usingFallback ? 'bundled fallback' : 'cached snapshot'), err);
     } finally {
+      clearTimeout(timer);
       inflight = null;
     }
   })();
@@ -196,6 +258,13 @@ export function getDifferentToken(chainKey: string, excludeSymbol: string): stri
 
 export function isCatalogReady(): boolean {
   return state.ready;
+}
+
+/** True when the active catalog came from the bundled fallback (i.e. no
+ *  cached snapshot and network fetch failed). UI can use this to surface
+ *  "offline catalog" state. Resets to false once a successful fetch lands. */
+export function isUsingFallbackCatalog(): boolean {
+  return usingFallback;
 }
 
 /**
@@ -257,4 +326,8 @@ export function useTokensFor(chainKey: string): Token[] {
 
 export function useCatalogReady(): boolean {
   return useSyncExternalStore(subscribe, isCatalogReady, isCatalogReady);
+}
+
+export function useUsingFallbackCatalog(): boolean {
+  return useSyncExternalStore(subscribe, isUsingFallbackCatalog, isUsingFallbackCatalog);
 }
