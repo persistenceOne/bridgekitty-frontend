@@ -1,5 +1,5 @@
 import type { ChainKey } from '../lib/chains';
-import { CHAIN_BY_KEY } from '../lib/chains';
+import { getChainByKey } from '../lib/catalogStore';
 import { resolveApiBaseUrl } from '../lib/apiBaseUrl';
 
 export type TxStage = 'submitted' | 'confirming' | 'bridging' | 'completed' | 'failed' | 'pending';
@@ -48,8 +48,8 @@ export async function fetchTransactionStatus(
   const base = resolveApiBaseUrl();
   if (!base) throw new Error('Backend API URL unavailable.');
 
-  const fromChainId = CHAIN_BY_KEY[fromChain]?.chainId;
-  const toChainId = CHAIN_BY_KEY[toChain ?? fromChain]?.chainId;
+  const fromChainId = getChainByKey(fromChain)?.chainId;
+  const toChainId = getChainByKey(toChain ?? fromChain)?.chainId;
 
   const params = new URLSearchParams();
   if (txHash) params.set('txHash', txHash);

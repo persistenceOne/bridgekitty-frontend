@@ -1,4 +1,3 @@
-import type { ChainKey } from './lib/chains';
 import type { ProviderKey, SwapDraft, TxStage } from './types';
 import { resolveApiBaseUrl } from './lib/apiBaseUrl';
 
@@ -30,20 +29,6 @@ export const PROVIDER_META: { key: ProviderKey; label: string; logo: string }[] 
   { key: 'symbiosis', label: 'Symbiosis', logo: '/providers/symbiosis.png' },
   { key: 'meson',     label: 'Meson',     logo: '/providers/meson.png'     },
 ];
-
-export const BLOCK_EXPLORER: Record<ChainKey, string> = {
-  ethereum: 'https://etherscan.io/tx/',
-  base: 'https://basescan.org/tx/',
-  bsc: 'https://bscscan.com/tx/',
-  polygon: 'https://polygonscan.com/tx/',
-  monad: 'https://monadscan.com/tx/',
-  bitlayer: 'https://www.btrscan.com/tx/',
-  merlin: 'https://scan.merlinchain.io/tx/',
-  core: 'https://scan.coredao.org/tx/',
-  'b2-network': 'https://explorer.bsquared.network/tx/',
-  rootstock: 'https://rootstock.blockscout.com/tx/',
-  bob: 'https://explorer.gobob.xyz/tx/'
-};
 
 export const TX_STAGES: { key: TxStage; label: string }[] = [
   { key: 'submitted',  label: 'Submitted' },

@@ -1736,6 +1736,69 @@ input, select, textarea, button { font-family: inherit; }
   border-color: var(--hf-primary-dark);
 }
 
+/* "Safe assets only" toggle — sits beneath the Powered-by row */
+.hf-safe-toggle-row {
+  display: flex;
+  justify-content: center;
+  margin: 0.4rem 0 0.6rem;
+}
+
+.hf-safe-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  border: 1px solid var(--hf-border);
+  border-radius: 999px;
+  background: var(--hf-bg-elevated);
+  color: var(--hf-text-secondary);
+  font-family: var(--hf-font-headline);
+  font-size: 0.6rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  padding: 0.25rem 0.5rem 0.25rem 0.55rem;
+  cursor: pointer;
+  transition: color var(--hf-transition), border-color var(--hf-transition), background var(--hf-transition);
+}
+
+.hf-safe-toggle:hover {
+  color: var(--hf-text-primary);
+  border-color: var(--hf-border-active);
+}
+
+.hf-safe-toggle--on {
+  color: var(--hf-text-primary);
+  border-color: var(--hf-primary);
+}
+
+.hf-safe-toggle-track {
+  position: relative;
+  display: inline-block;
+  width: 1.55rem;
+  height: 0.85rem;
+  border-radius: 999px;
+  background: var(--hf-border);
+  transition: background var(--hf-transition);
+}
+
+.hf-safe-toggle-track--on {
+  background: var(--hf-primary);
+}
+
+.hf-safe-toggle-thumb {
+  position: absolute;
+  top: 0.1rem;
+  left: 0.1rem;
+  width: 0.65rem;
+  height: 0.65rem;
+  border-radius: 999px;
+  background: #fff;
+  transition: transform var(--hf-transition);
+}
+
+.hf-safe-toggle-track--on .hf-safe-toggle-thumb {
+  transform: translateX(0.7rem);
+}
+
 .hf-balance-alert {
   font-size: 0.52rem;
   color: #9a1d2e;

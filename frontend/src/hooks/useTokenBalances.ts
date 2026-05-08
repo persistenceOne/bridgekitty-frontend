@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { CHAIN_BY_KEY, type ChainKey } from '../lib/chains';
+import type { ChainKey } from '../lib/chains';
+import { useTokensFor } from '../lib/catalogStore';
 import { formatUnits } from '../lib/amount';
 import { fetchSingleTokenBalance, fetchTokenBalancesForChain } from '../services/balanceService';
 import { makeBalanceKey } from '../lib/swap';
@@ -19,6 +20,7 @@ export function useTokenBalances(
   const [isRefreshingBalances, setIsRefreshingBalances] = useState(false);
   const [balanceRefreshTick, setBalanceRefreshTick] = useState(0);
   const [balanceError, setBalanceError] = useState('');
+  const fromChainTokens = useTokensFor(fromChain);
 
   useEffect(() => {
     if (!activeWalletAddress) {
@@ -36,7 +38,7 @@ export function useTokenBalances(
         const balances = await fetchTokenBalancesForChain(
           fromChain,
           activeWalletAddress,
-          CHAIN_BY_KEY[fromChain].tokens
+          fromChainTokens
         );
 
         if (cancelled) return;
@@ -61,7 +63,7 @@ export function useTokenBalances(
     refreshBalances().catch(() => {});
 
     return () => { cancelled = true; };
-  }, [activeWalletAddress, fromChain, balanceRefreshTick]);
+  }, [activeWalletAddress, fromChain, fromChainTokens, balanceRefreshTick]);
 
   // Ensure selected token balance is fetched with RPC fallback/retry
   useEffect(() => {
@@ -97,16 +99,15 @@ export function useTokenBalances(
 
   // Build formatted balance map for source chain token selector
   const formattedSourceBalances = useMemo(() => {
-    const fromTokenOptions = CHAIN_BY_KEY[fromChain].tokens;
     const map: Record<string, string> = {};
-    for (const token of fromTokenOptions) {
+    for (const token of fromChainTokens) {
       const raw = tokenBalances[makeBalanceKey(fromChain, token.address)];
       if (raw != null) {
         map[token.address.toLowerCase()] = formatUnits(raw, token.decimals, 4);
       }
     }
     return map;
-  }, [fromChain, tokenBalances]);
+  }, [fromChain, fromChainTokens, tokenBalances]);
 
   const refreshBalancesNow = () => setBalanceRefreshTick((t) => t + 1);
 

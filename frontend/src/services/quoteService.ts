@@ -1,4 +1,5 @@
-import { type ChainKey, CHAIN_BY_KEY, getToken } from '../lib/chains';
+import type { ChainKey } from '../lib/chains';
+import { getChainByKey, getToken } from '../lib/catalogStore';
 import { formatUnits, parseUnits } from '../lib/amount';
 import { resolveApiBaseUrl } from '../lib/apiBaseUrl';
 
@@ -204,8 +205,8 @@ export async function getAllSwapQuotes(
     throw new Error('Unsupported token for selected chain.');
   }
 
-  const fromChainId = CHAIN_BY_KEY[request.fromChain]?.chainId;
-  const toChainId = CHAIN_BY_KEY[request.toChain]?.chainId;
+  const fromChainId = getChainByKey(request.fromChain)?.chainId;
+  const toChainId = getChainByKey(request.toChain)?.chainId;
   if (!fromChainId || !toChainId) {
     throw new Error('Unsupported chain for selected route.');
   }

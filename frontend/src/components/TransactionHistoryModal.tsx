@@ -1,8 +1,7 @@
 import { Loader2, X } from 'lucide-react';
 import type { UserTransactionRecord } from '../services/transactionHistoryService';
-import { BLOCK_EXPLORER } from '../constants';
+import { getChainByKey } from '../lib/catalogStore';
 import { toProviderLabel } from '../lib/swap';
-import type { ChainKey } from '../lib/chains';
 
 interface TransactionHistoryModalProps {
   activeWalletAddress: string | null;
@@ -52,11 +51,9 @@ export function TransactionHistoryModal({
           ) : (
             <div className="hf-history-list">
               {historyRecords.map((record) => {
-                const chainKey = record.fromChain in BLOCK_EXPLORER
-                  ? (record.fromChain as ChainKey)
-                  : undefined;
-                const explorerUrl = chainKey
-                  ? `${BLOCK_EXPLORER[chainKey]}${record.txHash}`
+                const explorerBase = getChainByKey(record.fromChain)?.blockExplorerUrl;
+                const explorerUrl = explorerBase
+                  ? `${explorerBase}${record.txHash}`
                   : undefined;
                 const timestamp = record.createdAt
                   ? new Date(record.createdAt).toLocaleString()

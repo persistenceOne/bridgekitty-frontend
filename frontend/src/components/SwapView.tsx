@@ -5,13 +5,17 @@ import {
   History, Info, Loader2, Radio, RefreshCw, X, Zap
 } from 'lucide-react';
 import { TokenSelector } from './TokenSelector';
+import { SafeAssetsToggle } from './SafeAssetsToggle';
 import { formatUnits, formatUsd, parseUnits } from '../lib/amount';
-import { CHAINS, CHAIN_BY_KEY, getDefaultToken, type ChainKey } from '../lib/chains';
+import type { ChainKey } from '../lib/chains';
+import { useChainByKey, useChains, useTokensFor } from '../lib/catalogStore';
+import { getDefaultToken } from '../lib/catalogStore';
+import { filterSafe, isSafeToken, useSafeAssetsOnly } from '../lib/safeAssets';
 import { computeUsdValue } from '../services/priceService';
 import { isNativeToken } from '../lib/erc20';
 import { isValidSwapInput, makeBalanceKey, getDifferentToken, resolveToken } from '../lib/swap';
 import {
-  BLOCK_EXPLORER, LIVE_PROVIDERS, PROVIDER_META,
+  LIVE_PROVIDERS, PROVIDER_META,
   QUOTE_REFRESH_INTERVAL_S, TX_STAGES
 } from '../constants';
 import type { ProviderKey, SwapDraft, TxStatus, TxStage } from '../types';
@@ -61,10 +65,11 @@ export function SwapView({
   const [showToChainModal, setShowToChainModal] = useState(false);
   const [expandedRoute, setExpandedRoute] = useState<string | null>(null);
 
-  const fromChain = CHAIN_BY_KEY[draft.fromChain];
-  const toChain = CHAIN_BY_KEY[draft.toChain];
-  const fromTokenOptions = useMemo(() => fromChain.tokens, [fromChain]);
-  const toTokenOptions = useMemo(() => toChain.tokens, [toChain]);
+  const allChains = useChains();
+  const fromChain = useChainByKey(draft.fromChain);
+  const toChain = useChainByKey(draft.toChain);
+  const fromTokenOptions = useTokensFor(draft.fromChain);
+  const toTokenOptions = useTokensFor(draft.toChain);
 
   const sortedFromTokenOptions = useMemo(() => {
     const indexedTokens = fromTokenOptions.map((token, index) => ({
@@ -84,6 +89,40 @@ export function SwapView({
   const selectedFromToken = fromTokenOptions.find((t) => t.symbol === draft.fromTokenSymbol) ?? fromTokenOptions[0];
   const selectedToToken = toTokenOptions.find((t) => t.symbol === draft.toTokenSymbol) ?? toTokenOptions[0];
   const hasConnectedWallet = Boolean(activeWalletAddress);
+
+  // ── Safe-assets filter ──────────────────────────────────────────────
+  // When the user enables "Safe assets only", any currently-selected token
+  // that isn't tagged native / btc-variant / stablecoin would otherwise stay
+  // visible in the field even though it's hidden in the picker. Auto-reset
+  // each side to the first safe token on the chain. If a chain happens to
+  // have no safe tokens, leave the selection alone and let the picker show
+  // its empty-state copy.
+  const safeAssetsOnly = useSafeAssetsOnly();
+  useEffect(() => {
+    if (!safeAssetsOnly) return;
+    const safeFrom = filterSafe(fromTokenOptions, true);
+    const safeTo = filterSafe(toTokenOptions, true);
+    const fromUnsafe = !isSafeToken(selectedFromToken) && safeFrom.length > 0;
+    const toUnsafe = !isSafeToken(selectedToToken) && safeTo.length > 0;
+    if (!fromUnsafe && !toUnsafe) return;
+    const nextFromSymbol = fromUnsafe ? safeFrom[0].symbol : draft.fromTokenSymbol;
+    const nextToSymbol = toUnsafe ? safeTo[0].symbol : draft.toTokenSymbol;
+    // Avoid same-chain same-symbol pairs after the swap.
+    const dedupedToSymbol =
+      draft.fromChain === draft.toChain && nextFromSymbol === nextToSymbol
+        ? getDifferentToken(draft.toChain, nextFromSymbol)
+        : nextToSymbol;
+    const next: SwapDraft = {
+      ...draft,
+      fromTokenSymbol: nextFromSymbol,
+      toTokenSymbol: dedupedToSymbol,
+      // Same rationale as token-select: a numeric amount only made sense for
+      // the previous source token; reset to avoid quoting a wildly wrong size.
+      amount: fromUnsafe ? '' : draft.amount,
+    };
+    setDraft(next);
+    triggerFetchImmediate(next);
+  }, [safeAssetsOnly, draft.fromChain, draft.toChain]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const selectedBalanceKey = makeBalanceKey(draft.fromChain, selectedFromToken.address);
   const selectedSourceBalanceRaw = tokenBalances[selectedBalanceKey];
@@ -217,9 +256,9 @@ export function SwapView({
     nextChain: ChainKey,
     symbol: string
   ): string => {
-    const currentNative = getDefaultToken(currentChain).symbol;
-    const nextNative = getDefaultToken(nextChain).symbol;
-    if (symbol === currentNative && currentNative !== nextNative) return nextNative;
+    const currentNative = getDefaultToken(currentChain)?.symbol ?? '';
+    const nextNative = getDefaultToken(nextChain)?.symbol ?? '';
+    if (currentNative && nextNative && symbol === currentNative && currentNative !== nextNative) return nextNative;
     return resolveToken(nextChain, undefined, symbol);
   };
 
@@ -351,6 +390,12 @@ export function SwapView({
     })
   , [quotes, quotingProviders, retryingProviders, objectivelyBestId]);
 
+  // App.tsx gates this view on `catalogReady`, so fromChain/toChain should
+  // always resolve here. Guard anyway: if a draft references a chain key
+  // that's no longer in the catalog (deprecated remotely between renders),
+  // bail rather than crash.
+  if (!fromChain || !toChain) return null;
+
   return (
     <motion.div
       key="swap"
@@ -394,6 +439,10 @@ export function SwapView({
             <img src="/providers/across.png" alt="Across" className="hf-swap-powered-logo" />
             <img src="/providers/symbiosis.png" alt="Symbiosis" className="hf-swap-powered-logo" />
             <img src="/providers/meson.png" alt="Meson" className="hf-swap-powered-logo" />
+          </div>
+
+          <div className="hf-safe-toggle-row">
+            <SafeAssetsToggle />
           </div>
 
           {/* Quote Refresh Countdown */}
@@ -466,7 +515,7 @@ export function SwapView({
                   selectedToken={selectedFromToken}
                   tokens={sortedFromTokenOptions}
                   chain={fromChain}
-                  chains={CHAINS}
+                  chains={allChains}
                   onSelectToken={(s) => {
                     // Reset amount — the number only made sense for the previous
                     // source token. Keeping "100" when swapping ETH→UNI would
@@ -564,7 +613,7 @@ export function SwapView({
                   selectedToken={selectedToToken}
                   tokens={toTokenOptions}
                   chain={toChain}
-                  chains={CHAINS}
+                  chains={allChains}
                   onSelectToken={(s) => {
                     const next = { ...draft, toTokenSymbol: s };
                     setDraft(next);
@@ -609,8 +658,8 @@ export function SwapView({
           {/* Transaction Progress */}
           {txStatus && (() => {
             const isCrossChain = draft.fromChain !== draft.toChain;
-            const destChainLabel = CHAIN_BY_KEY[draft.toChain].name;
-            const srcChainLabel = CHAIN_BY_KEY[draft.fromChain].name;
+            const destChainLabel = toChain?.name ?? draft.toChain;
+            const srcChainLabel = fromChain?.name ?? draft.fromChain;
             const bridgingHint =
               isCrossChain && txStatus.stage === 'bridging'
                 ? `Bridging to ${destChainLabel} — this usually takes 1–3 minutes.`
@@ -627,7 +676,7 @@ export function SwapView({
                    '⏳ In-progress'}
                 </span>
                 <a
-                  href={`${BLOCK_EXPLORER[draft.fromChain]}${txStatus.hash}`}
+                  href={`${fromChain?.blockExplorerUrl ?? ''}${txStatus.hash}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="hf-tx-hash"
@@ -660,9 +709,9 @@ export function SwapView({
               {/* Cross-chain: show destination tx link once it lands, plus LI.FI explorer */}
               {isCrossChain && (txStatus.receivingTxHash || txStatus.lifiExplorerLink) && (
                 <div className="hf-tx-links">
-                  {txStatus.receivingTxHash && BLOCK_EXPLORER[draft.toChain] && (
+                  {txStatus.receivingTxHash && toChain?.blockExplorerUrl && (
                     <a
-                      href={`${BLOCK_EXPLORER[draft.toChain]}${txStatus.receivingTxHash}`}
+                      href={`${toChain.blockExplorerUrl}${txStatus.receivingTxHash}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="hf-tx-link-pill"

@@ -1,4 +1,10 @@
-import { CHAINS, CHAIN_BY_KEY, getDefaultToken, getToken, type ChainKey } from './chains';
+import {
+  getChains,
+  getDefaultToken,
+  getToken,
+  getTokensFor,
+} from './catalogStore';
+import type { ChainKey } from './chains';
 import type { SwapDraft } from '../types';
 
 export function makeBalanceKey(chain: ChainKey, tokenAddress: string): string {
@@ -11,21 +17,22 @@ export function toProviderLabel(provider?: string): string {
 }
 
 export function getAnotherChain(chain: ChainKey): ChainKey {
-  const allKeys = CHAINS.map((c) => c.key);
+  const allKeys = getChains().map((c) => c.key);
   const idx = allKeys.indexOf(chain);
+  if (idx === -1) return allKeys[0] ?? chain;
   return allKeys[(idx + 1) % allKeys.length];
 }
 
 export function getDifferentToken(chain: ChainKey, excludeSymbol: string): string {
-  const tokens = CHAIN_BY_KEY[chain].tokens;
+  const tokens = getTokensFor(chain);
   const other = tokens.find((t) => t.symbol !== excludeSymbol);
-  return other?.symbol ?? tokens[0].symbol;
+  return other?.symbol ?? tokens[0]?.symbol ?? excludeSymbol;
 }
 
 export function resolveToken(chain: ChainKey, preferred?: string, fallback?: string): string {
   if (preferred && getToken(chain, preferred)) return preferred;
   if (fallback && getToken(chain, fallback)) return fallback;
-  return getDefaultToken(chain).symbol;
+  return getDefaultToken(chain)?.symbol ?? preferred ?? fallback ?? '';
 }
 
 export function toHexQuantity(value?: string): string | undefined {

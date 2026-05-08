@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { ChevronDown, X } from 'lucide-react';
 import type { TokenOption, ChainOption } from '../lib/chains';
+import { filterSafe, useSafeAssetsOnly } from '../lib/safeAssets';
 
 interface TokenSelectorProps {
   label: string;
@@ -32,13 +33,16 @@ export function TokenSelector({
 }: TokenSelectorProps) {
   const [showTokenModal, setShowTokenModal] = useState(false);
   const [tokenSearch, setTokenSearch] = useState('');
+  const safeAssetsOnly = useSafeAssetsOnly();
   const normalizedSearch = tokenSearch.trim().toLowerCase();
+  const candidateTokens = filterSafe(tokens, safeAssetsOnly);
   const filteredTokens = normalizedSearch
-    ? tokens.filter((token) =>
+    ? candidateTokens.filter((token) =>
       token.symbol.toLowerCase().includes(normalizedSearch)
       || token.name.toLowerCase().includes(normalizedSearch)
     )
-    : tokens;
+    : candidateTokens;
+  const isHiddenBySafeFilter = safeAssetsOnly && !normalizedSearch && tokens.length > 0 && candidateTokens.length === 0;
 
   return (
     <>
@@ -117,7 +121,11 @@ export function TokenSelector({
                 </button>
               ))}
               {filteredTokens.length === 0 && (
-                <div className="hf-dropdown-empty">No token matches that search.</div>
+                <div className="hf-dropdown-empty">
+                  {isHiddenBySafeFilter
+                    ? 'No safe assets on this chain. Turn off "Safe assets only" to see all tokens.'
+                    : 'No token matches that search.'}
+                </div>
               )}
             </div>
           </div>

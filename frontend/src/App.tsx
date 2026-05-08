@@ -12,7 +12,7 @@ import { AgentView } from './components/AgentView';
 import { SwapView } from './components/SwapView';
 import { StatsView } from './components/StatsView';
 import { TransactionHistoryModal } from './components/TransactionHistoryModal';
-import { CHAIN_BY_KEY } from './lib/chains';
+import { loadCatalog, useCatalogReady, useChainByKey, useTokensFor } from './lib/catalogStore';
 import { usePrices } from './hooks/usePrices';
 import { useTokenBalances } from './hooks/useTokenBalances';
 import { useSwapQuotes } from './hooks/useSwapQuotes';
@@ -31,8 +31,23 @@ function App() {
 
   const privyAuth = usePrivyAuth();
   const activeWalletAddress = walletBridge?.address ?? walletAddress;
-  const fromChain = CHAIN_BY_KEY[draft.fromChain];
-  const selectedFromToken = fromChain.tokens.find((t) => t.symbol === draft.fromTokenSymbol) ?? fromChain.tokens[0];
+  const catalogReady = useCatalogReady();
+  const fromChain = useChainByKey(draft.fromChain);
+  const fromChainTokens = useTokensFor(draft.fromChain);
+  // Placeholder shape used only during the brief window before the catalog
+  // resolves on a fresh first visit (no cached snapshot). The render gate
+  // below prevents this from reaching the swap form.
+  const selectedFromToken =
+    fromChainTokens.find((t) => t.symbol === draft.fromTokenSymbol)
+    ?? fromChainTokens[0]
+    ?? { symbol: '', name: '', address: '', decimals: 18, logoURI: '' };
+  const fromChainId = fromChain?.chainId ?? 0;
+
+  // Bootstrap the chain/token catalog from the backend on mount. The store
+  // hydrates from localStorage synchronously, so when a cached snapshot
+  // exists `catalogReady` is true on first render and the swap form is
+  // visible immediately. First-ever visits show the loader below.
+  useEffect(() => { void loadCatalog(); }, []);
 
   // ── Hooks ──
   const prices = usePrices(draft.fromTokenSymbol, draft.toTokenSymbol);
@@ -58,7 +73,7 @@ function App() {
   const {
     isExecuting, txStatus, error,
     executeSwap: doExecuteSwap, clearTxStatus, clearError,
-  } = useSwapExecution(walletBridge, fromChain.chainId, onPostSwap);
+  } = useSwapExecution(walletBridge, fromChainId, onPostSwap);
 
   // Keep quote hook aware of execution state (prevents auto-refresh during swap)
   useEffect(() => {
@@ -194,7 +209,20 @@ function App() {
           <StatsView onBack={() => setView('landing')} />
         )}
 
-        {view === 'human' && (
+        {view === 'human' && !catalogReady && (
+          <motion.main
+            key="human-loading"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.18 }}
+            className="hf-content"
+          >
+            <p className="hf-history-empty">Loading supported chains and tokens…</p>
+          </motion.main>
+        )}
+
+        {view === 'human' && catalogReady && (
           <motion.main
             key="human"
             initial={{ opacity: 0, y: 18 }}
