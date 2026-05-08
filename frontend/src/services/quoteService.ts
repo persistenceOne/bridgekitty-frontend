@@ -278,6 +278,9 @@ interface ExecuteResponse {
 
 export interface ExecutedQuote {
   trackingId: string;
+  /** chainId returned by the backend for the bridge transaction. Used by the
+   *  client to verify it matches the chain the user selected before signing. */
+  chainId: number;
   transactionRequest: NonNullable<QuoteResult['transactionRequest']>;
   approvalTransaction?: NonNullable<ExecuteResponse['approvalTransaction']>;
   needsPostApprovalBuild?: boolean;
@@ -295,6 +298,7 @@ export async function executeQuote(quoteId: string, signal?: AbortSignal): Promi
 
   return {
     trackingId: data.trackingId,
+    chainId: data.transaction.chainId,
     transactionRequest: {
       to: data.transaction.to,
       data: data.transaction.data,
