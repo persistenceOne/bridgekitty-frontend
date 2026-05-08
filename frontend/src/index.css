@@ -1910,6 +1910,29 @@ input, select, textarea, button { font-family: inherit; }
 .hf-dropdown-search-wrap {
   padding: 0.55rem 0.75rem 0.35rem;
   border-bottom: 1px solid var(--hf-border);
+  position: relative;
+}
+
+.hf-dropdown-search-spinner {
+  position: absolute;
+  right: 1.05rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--hf-text-muted);
+}
+
+.hf-dropdown-item-tag {
+  font-family: var(--hf-font-headline);
+  font-size: 0.5rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--hf-text-muted);
+  border: 1px solid var(--hf-border);
+  border-radius: 4px;
+  padding: 0.1rem 0.3rem;
+  margin-left: auto;
+  margin-right: 0.4rem;
 }
 
 .hf-dropdown-search {

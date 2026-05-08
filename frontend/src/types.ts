@@ -10,6 +10,11 @@ export interface SwapDraft {
   toChain: ChainKey;
   fromTokenSymbol: string;
   toTokenSymbol: string;
+  /** Optional address for unambiguous selection — set when the user picks a
+   *  long-tail token from search results that may collide with a curated
+   *  token's symbol. Falls back to symbol-only lookup if undefined. */
+  fromTokenAddress?: string;
+  toTokenAddress?: string;
   amount: string;
 }
 

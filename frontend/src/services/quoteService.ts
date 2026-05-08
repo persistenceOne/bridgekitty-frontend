@@ -1,7 +1,8 @@
 import type { ChainKey } from '../lib/chains';
-import { getChainByKey, getToken } from '../lib/catalogStore';
+import { getChainByKey, getTokensFor } from '../lib/catalogStore';
 import { formatUnits, parseUnits } from '../lib/amount';
 import { resolveApiBaseUrl } from '../lib/apiBaseUrl';
+import { matchToken } from '../lib/swap';
 
 const NULL_ADDRESS = '0x0000000000000000000000000000000000000000';
 
@@ -10,6 +11,10 @@ export interface QuoteRequest {
   toChain: ChainKey;
   fromTokenSymbol: string;
   toTokenSymbol: string;
+  /** Optional pinned addresses — set when the user picked a long-tail token
+   *  whose symbol may collide with a curated entry. */
+  fromTokenAddress?: string;
+  toTokenAddress?: string;
   amount: string;
   walletAddress?: string | null;
 }
@@ -199,8 +204,8 @@ export async function getAllSwapQuotes(
     throw new Error('Source and destination tokens must be different for a same-chain swap.');
   }
 
-  const fromToken = getToken(request.fromChain, request.fromTokenSymbol);
-  const toToken = getToken(request.toChain, request.toTokenSymbol);
+  const fromToken = matchToken(getTokensFor(request.fromChain), request.fromTokenSymbol, request.fromTokenAddress);
+  const toToken = matchToken(getTokensFor(request.toChain), request.toTokenSymbol, request.toTokenAddress);
   if (!fromToken || !toToken) {
     throw new Error('Unsupported token for selected chain.');
   }

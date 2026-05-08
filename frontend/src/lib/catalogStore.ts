@@ -7,7 +7,14 @@ const SNAPSHOT_VERSION = 1;
 
 interface CatalogState {
   chains: Chain[];
+  /** Curated tokens served by /api/v1/catalog. */
   tokensByChainKey: Map<string, Token[]>;
+  /** Session-only long-tail tokens picked from /api/v1/tokens/search results.
+   *  Not persisted — they get rediscovered on the next search. */
+  extraTokensByChainKey: Map<string, Token[]>;
+  /** Pre-merged (curated + extras, deduped by lower(address)) — read by hooks
+   *  and synchronous getters. Rebuilt every time tokens or extras change. */
+  mergedByChainKey: Map<string, Token[]>;
   ready: boolean;
   fetchedAt: number | null;
 }
@@ -25,22 +32,59 @@ interface CatalogResponse {
   fetchedAt: string;
 }
 
+function emptyState(): CatalogState {
+  return {
+    chains: [],
+    tokensByChainKey: new Map(),
+    extraTokensByChainKey: new Map(),
+    mergedByChainKey: new Map(),
+    ready: false,
+    fetchedAt: null,
+  };
+}
+
+function rebuildMerged(
+  curated: Map<string, Token[]>,
+  extras: Map<string, Token[]>,
+): Map<string, Token[]> {
+  const out = new Map<string, Token[]>();
+  for (const [chainKey, list] of curated) {
+    out.set(chainKey, [...list]);
+  }
+  for (const [chainKey, extraList] of extras) {
+    const merged = out.get(chainKey) ?? [];
+    const seen = new Set(merged.map((t) => t.address.toLowerCase()));
+    for (const t of extraList) {
+      const lower = t.address.toLowerCase();
+      if (seen.has(lower)) continue;
+      seen.add(lower);
+      merged.push(t);
+    }
+    out.set(chainKey, merged);
+  }
+  return out;
+}
+
 function readPersisted(): CatalogState {
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return { chains: [], tokensByChainKey: new Map(), ready: false, fetchedAt: null };
+    if (!raw) return emptyState();
     const parsed = JSON.parse(raw) as PersistedSnapshot;
     if (parsed.v !== SNAPSHOT_VERSION || !Array.isArray(parsed.chains)) {
-      return { chains: [], tokensByChainKey: new Map(), ready: false, fetchedAt: null };
+      return emptyState();
     }
+    const tokensByChainKey = new Map(Object.entries(parsed.tokensByChainKey));
+    const extras = new Map<string, Token[]>();
     return {
       chains: parsed.chains,
-      tokensByChainKey: new Map(Object.entries(parsed.tokensByChainKey)),
+      tokensByChainKey,
+      extraTokensByChainKey: extras,
+      mergedByChainKey: rebuildMerged(tokensByChainKey, extras),
       ready: parsed.chains.length > 0,
       fetchedAt: parsed.fetchedAt,
     };
   } catch {
-    return { chains: [], tokensByChainKey: new Map(), ready: false, fetchedAt: null };
+    return emptyState();
   }
 }
 
@@ -83,9 +127,13 @@ export async function loadCatalog(): Promise<void> {
         tokensByChainKey.set(k, v);
       }
       const fetchedAt = data.fetchedAt ? new Date(data.fetchedAt).getTime() : Date.now();
+      // Preserve any session-scoped extras across catalog refreshes.
+      const extras = state.extraTokensByChainKey;
       state = {
         chains: data.chains ?? [],
         tokensByChainKey,
+        extraTokensByChainKey: extras,
+        mergedByChainKey: rebuildMerged(tokensByChainKey, extras),
         ready: (data.chains ?? []).length > 0,
         fetchedAt,
       };
@@ -124,11 +172,16 @@ export function getChainByChainId(chainId: number): Chain | undefined {
 const EMPTY_TOKENS: Token[] = Object.freeze([]) as unknown as Token[];
 
 export function getTokensFor(chainKey: string): Token[] {
-  return state.tokensByChainKey.get(chainKey) ?? EMPTY_TOKENS;
+  return state.mergedByChainKey.get(chainKey) ?? EMPTY_TOKENS;
 }
 
 export function getToken(chainKey: string, symbol: string): Token | undefined {
   return getTokensFor(chainKey).find((t) => t.symbol === symbol);
+}
+
+export function getTokenByAddress(chainKey: string, address: string): Token | undefined {
+  const lower = address.toLowerCase();
+  return getTokensFor(chainKey).find((t) => t.address.toLowerCase() === lower);
 }
 
 export function getDefaultToken(chainKey: string): Token | undefined {
@@ -143,6 +196,28 @@ export function getDifferentToken(chainKey: string, excludeSymbol: string): stri
 
 export function isCatalogReady(): boolean {
   return state.ready;
+}
+
+/**
+ * Register a long-tail token surfaced by /api/v1/tokens/search so it's part
+ * of the chain's token list for the rest of the session. Dedup by lowercased
+ * address against the curated set + any existing extras. No-op if already
+ * present. Not persisted to localStorage — extras are session-scoped.
+ */
+export function addExtraToken(chainKey: string, token: Token): void {
+  const lower = token.address.toLowerCase();
+  const curated = state.tokensByChainKey.get(chainKey);
+  if (curated && curated.some((t) => t.address.toLowerCase() === lower)) return;
+  const existing = state.extraTokensByChainKey.get(chainKey) ?? [];
+  if (existing.some((t) => t.address.toLowerCase() === lower)) return;
+  const nextExtras = new Map(state.extraTokensByChainKey);
+  nextExtras.set(chainKey, [...existing, token]);
+  state = {
+    ...state,
+    extraTokensByChainKey: nextExtras,
+    mergedByChainKey: rebuildMerged(state.tokensByChainKey, nextExtras),
+  };
+  emit();
 }
 
 // ── React hooks (subscribe components to store changes) ──

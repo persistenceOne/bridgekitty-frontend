@@ -5,7 +5,7 @@ import {
   type PrivyWalletBridge
 } from './components/WalletConnector';
 import { parseUnits } from './lib/amount';
-import { makeBalanceKey } from './lib/swap';
+import { makeBalanceKey, matchToken } from './lib/swap';
 import { computeUsdValue } from './services/priceService';
 import { LandingView } from './components/LandingView';
 import { AgentView } from './components/AgentView';
@@ -38,7 +38,7 @@ function App() {
   // resolves on a fresh first visit (no cached snapshot). The render gate
   // below prevents this from reaching the swap form.
   const selectedFromToken =
-    fromChainTokens.find((t) => t.symbol === draft.fromTokenSymbol)
+    matchToken(fromChainTokens, draft.fromTokenSymbol, draft.fromTokenAddress)
     ?? fromChainTokens[0]
     ?? { symbol: '', name: '', address: '', decimals: 18, logoURI: '' };
   const fromChainId = fromChain?.chainId ?? 0;

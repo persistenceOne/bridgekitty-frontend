@@ -7,13 +7,13 @@ import {
 import { TokenSelector } from './TokenSelector';
 import { SafeAssetsToggle } from './SafeAssetsToggle';
 import { formatUnits, formatUsd, parseUnits } from '../lib/amount';
-import type { ChainKey } from '../lib/chains';
-import { useChainByKey, useChains, useTokensFor } from '../lib/catalogStore';
+import type { ChainKey, TokenOption } from '../lib/chains';
+import { addExtraToken, useChainByKey, useChains, useTokensFor } from '../lib/catalogStore';
 import { getDefaultToken } from '../lib/catalogStore';
 import { filterSafe, isSafeToken, useSafeAssetsOnly } from '../lib/safeAssets';
 import { computeUsdValue } from '../services/priceService';
 import { isNativeToken } from '../lib/erc20';
-import { isValidSwapInput, makeBalanceKey, getDifferentToken, resolveToken } from '../lib/swap';
+import { isValidSwapInput, makeBalanceKey, matchToken, getDifferentToken, resolveToken } from '../lib/swap';
 import {
   LIVE_PROVIDERS, PROVIDER_META,
   QUOTE_REFRESH_INTERVAL_S, TX_STAGES
@@ -86,8 +86,12 @@ export function SwapView({
     return indexedTokens.map((entry) => entry.token);
   }, [draft.fromChain, fromTokenOptions, tokenBalances]);
 
-  const selectedFromToken = fromTokenOptions.find((t) => t.symbol === draft.fromTokenSymbol) ?? fromTokenOptions[0];
-  const selectedToToken = toTokenOptions.find((t) => t.symbol === draft.toTokenSymbol) ?? toTokenOptions[0];
+  const selectedFromToken =
+    matchToken(fromTokenOptions, draft.fromTokenSymbol, draft.fromTokenAddress)
+    ?? fromTokenOptions[0];
+  const selectedToToken =
+    matchToken(toTokenOptions, draft.toTokenSymbol, draft.toTokenAddress)
+    ?? toTokenOptions[0];
   const hasConnectedWallet = Boolean(activeWalletAddress);
 
   // ── Safe-assets filter ──────────────────────────────────────────────
@@ -241,6 +245,11 @@ export function SwapView({
       toChain: draft.fromChain,
       fromTokenSymbol: resolveToken(draft.toChain, draft.toTokenSymbol),
       toTokenSymbol: resolveToken(draft.fromChain, draft.fromTokenSymbol),
+      // Carry pinned addresses across the swap if the user explicitly
+      // selected long-tail tokens. They're chain-scoped so swapping the
+      // chains swaps the addresses too.
+      fromTokenAddress: draft.toTokenAddress,
+      toTokenAddress: draft.fromTokenAddress,
     };
     setDraft(next);
     onTxStatusClear();
@@ -271,7 +280,16 @@ export function SwapView({
     // Reset amount: the numeric value only made sense for the previous source
     // asset (e.g. "100" means something very different for ETH vs UNI). Forcing
     // the user to re-enter prevents accidentally quoting a wildly wrong size.
-    const next: SwapDraft = { ...draft, fromChain: chain, fromTokenSymbol, toTokenSymbol, amount: '' };
+    // Clear pinned addresses — they were specific to the previous chain.
+    const next: SwapDraft = {
+      ...draft,
+      fromChain: chain,
+      fromTokenSymbol,
+      toTokenSymbol,
+      fromTokenAddress: undefined,
+      toTokenAddress: isSameChain ? undefined : draft.toTokenAddress,
+      amount: '',
+    };
     setDraft(next);
     triggerFetchImmediate(next);
   };
@@ -282,7 +300,14 @@ export function SwapView({
     const toTokenSymbol = isSameChain
       ? getDifferentToken(chain, fromTokenSymbol)
       : mapNativeAcrossChains(draft.toChain, chain, draft.toTokenSymbol);
-    const next: SwapDraft = { ...draft, toChain: chain, fromTokenSymbol, toTokenSymbol };
+    const next: SwapDraft = {
+      ...draft,
+      toChain: chain,
+      fromTokenSymbol,
+      toTokenSymbol,
+      toTokenAddress: undefined,
+      fromTokenAddress: isSameChain ? undefined : draft.fromTokenAddress,
+    };
     setDraft(next);
     triggerFetchImmediate(next);
   };
@@ -516,11 +541,20 @@ export function SwapView({
                   tokens={sortedFromTokenOptions}
                   chain={fromChain}
                   chains={allChains}
-                  onSelectToken={(s) => {
+                  onSelectToken={(token: TokenOption) => {
+                    // Register long-tail (search-result) tokens with the
+                    // catalog store so subsequent lookups by symbol/address
+                    // resolve correctly. No-op for tokens already curated.
+                    addExtraToken(draft.fromChain, token);
                     // Reset amount — the number only made sense for the previous
                     // source token. Keeping "100" when swapping ETH→UNI would
                     // quote ~$325 worth instead of ~$325k (or vice versa).
-                    const next = { ...draft, fromTokenSymbol: s, amount: '' };
+                    const next: SwapDraft = {
+                      ...draft,
+                      fromTokenSymbol: token.symbol,
+                      fromTokenAddress: token.address,
+                      amount: '',
+                    };
                     setDraft(next);
                     triggerFetchImmediate(next);
                     onTxStatusClear();
@@ -614,8 +648,13 @@ export function SwapView({
                   tokens={toTokenOptions}
                   chain={toChain}
                   chains={allChains}
-                  onSelectToken={(s) => {
-                    const next = { ...draft, toTokenSymbol: s };
+                  onSelectToken={(token: TokenOption) => {
+                    addExtraToken(draft.toChain, token);
+                    const next: SwapDraft = {
+                      ...draft,
+                      toTokenSymbol: token.symbol,
+                      toTokenAddress: token.address,
+                    };
                     setDraft(next);
                     triggerFetchImmediate(next);
                   }}

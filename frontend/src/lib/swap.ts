@@ -4,8 +4,24 @@ import {
   getToken,
   getTokensFor,
 } from './catalogStore';
-import type { ChainKey } from './chains';
+import type { ChainKey, TokenOption } from './chains';
 import type { SwapDraft } from '../types';
+
+/** Find a token in a chain's token list, preferring address-based match (for
+ *  long-tail tokens that may share a symbol with a curated entry) and
+ *  falling back to symbol-based match. */
+export function matchToken(
+  tokens: TokenOption[],
+  symbol: string,
+  address?: string,
+): TokenOption | undefined {
+  if (address) {
+    const lower = address.toLowerCase();
+    const byAddr = tokens.find((t) => t.address.toLowerCase() === lower);
+    if (byAddr) return byAddr;
+  }
+  return tokens.find((t) => t.symbol === symbol);
+}
 
 export function makeBalanceKey(chain: ChainKey, tokenAddress: string): string {
   return `${chain}:${tokenAddress.toLowerCase()}`;
