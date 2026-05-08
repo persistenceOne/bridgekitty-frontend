@@ -1,6 +1,8 @@
-import { type ChainKey, CHAIN_BY_KEY, getToken } from '../lib/chains';
+import type { ChainKey } from '../lib/chains';
+import { getChainByKey, getTokensFor } from '../lib/catalogStore';
 import { formatUnits, parseUnits } from '../lib/amount';
 import { resolveApiBaseUrl } from '../lib/apiBaseUrl';
+import { matchToken } from '../lib/swap';
 
 const NULL_ADDRESS = '0x0000000000000000000000000000000000000000';
 
@@ -9,6 +11,10 @@ export interface QuoteRequest {
   toChain: ChainKey;
   fromTokenSymbol: string;
   toTokenSymbol: string;
+  /** Optional pinned addresses — set when the user picked a long-tail token
+   *  whose symbol may collide with a curated entry. */
+  fromTokenAddress?: string;
+  toTokenAddress?: string;
   amount: string;
   walletAddress?: string | null;
 }
@@ -198,14 +204,23 @@ export async function getAllSwapQuotes(
     throw new Error('Source and destination tokens must be different for a same-chain swap.');
   }
 
-  const fromToken = getToken(request.fromChain, request.fromTokenSymbol);
-  const toToken = getToken(request.toChain, request.toTokenSymbol);
+  // Address-pinned lookup: when the draft carries fromTokenAddress / toToken-
+  // Address (set by TokenSelector when the user picks a long-tail token from
+  // search results), matchToken resolves by lower-cased address first and
+  // only falls back to the symbol if that fails. This is load-bearing — when
+  // a user picks the long-tail USDC LP variant, fromTokenSymbol stays
+  // "USDC" but the address differentiates it from the curated USDC.
+  // The payload below sends fromToken.address / toToken.address directly,
+  // never the request's symbol, so the backend always quotes the exact
+  // token the user selected.
+  const fromToken = matchToken(getTokensFor(request.fromChain), request.fromTokenSymbol, request.fromTokenAddress);
+  const toToken = matchToken(getTokensFor(request.toChain), request.toTokenSymbol, request.toTokenAddress);
   if (!fromToken || !toToken) {
     throw new Error('Unsupported token for selected chain.');
   }
 
-  const fromChainId = CHAIN_BY_KEY[request.fromChain]?.chainId;
-  const toChainId = CHAIN_BY_KEY[request.toChain]?.chainId;
+  const fromChainId = getChainByKey(request.fromChain)?.chainId;
+  const toChainId = getChainByKey(request.toChain)?.chainId;
   if (!fromChainId || !toChainId) {
     throw new Error('Unsupported chain for selected route.');
   }

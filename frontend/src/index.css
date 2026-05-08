@@ -1736,6 +1736,69 @@ input, select, textarea, button { font-family: inherit; }
   border-color: var(--hf-primary-dark);
 }
 
+/* "Safe assets only" toggle — sits beneath the Powered-by row */
+.hf-safe-toggle-row {
+  display: flex;
+  justify-content: center;
+  margin: 0.4rem 0 0.6rem;
+}
+
+.hf-safe-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  border: 1px solid var(--hf-border);
+  border-radius: 999px;
+  background: var(--hf-bg-elevated);
+  color: var(--hf-text-secondary);
+  font-family: var(--hf-font-headline);
+  font-size: 0.6rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  padding: 0.25rem 0.5rem 0.25rem 0.55rem;
+  cursor: pointer;
+  transition: color var(--hf-transition), border-color var(--hf-transition), background var(--hf-transition);
+}
+
+.hf-safe-toggle:hover {
+  color: var(--hf-text-primary);
+  border-color: var(--hf-border-active);
+}
+
+.hf-safe-toggle--on {
+  color: var(--hf-text-primary);
+  border-color: var(--hf-primary);
+}
+
+.hf-safe-toggle-track {
+  position: relative;
+  display: inline-block;
+  width: 1.55rem;
+  height: 0.85rem;
+  border-radius: 999px;
+  background: var(--hf-border);
+  transition: background var(--hf-transition);
+}
+
+.hf-safe-toggle-track--on {
+  background: var(--hf-primary);
+}
+
+.hf-safe-toggle-thumb {
+  position: absolute;
+  top: 0.1rem;
+  left: 0.1rem;
+  width: 0.65rem;
+  height: 0.65rem;
+  border-radius: 999px;
+  background: #fff;
+  transition: transform var(--hf-transition);
+}
+
+.hf-safe-toggle-track--on .hf-safe-toggle-thumb {
+  transform: translateX(0.7rem);
+}
+
 .hf-balance-alert {
   font-size: 0.52rem;
   color: #9a1d2e;
@@ -1847,6 +1910,29 @@ input, select, textarea, button { font-family: inherit; }
 .hf-dropdown-search-wrap {
   padding: 0.55rem 0.75rem 0.35rem;
   border-bottom: 1px solid var(--hf-border);
+  position: relative;
+}
+
+.hf-dropdown-search-spinner {
+  position: absolute;
+  right: 1.05rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--hf-text-muted);
+}
+
+.hf-dropdown-item-tag {
+  font-family: var(--hf-font-headline);
+  font-size: 0.5rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--hf-text-muted);
+  border: 1px solid var(--hf-border);
+  border-radius: 4px;
+  padding: 0.1rem 0.3rem;
+  margin-left: auto;
+  margin-right: 0.4rem;
 }
 
 .hf-dropdown-search {
@@ -1938,6 +2024,27 @@ input, select, textarea, button { font-family: inherit; }
   font-size: 0.72rem;
   text-align: center;
   padding: 0.7rem;
+}
+
+.hf-dropdown-empty-action {
+  display: block;
+  margin: 0.4rem auto 0;
+  border: 1px solid var(--hf-primary);
+  border-radius: 999px;
+  background: var(--hf-bg-elevated);
+  color: var(--hf-text-primary);
+  font-family: var(--hf-font-headline);
+  font-size: 0.6rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  padding: 0.3rem 0.65rem;
+  cursor: pointer;
+  transition: background var(--hf-transition), color var(--hf-transition);
+}
+
+.hf-dropdown-empty-action:hover {
+  background: var(--hf-primary);
+  color: var(--hf-primary-text);
 }
 
 /* ─── Switch/Swap Direction Button ───────────────────── */
