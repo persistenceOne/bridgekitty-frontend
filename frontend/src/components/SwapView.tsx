@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   AlertTriangle, ArrowUpDown, Check, CheckCircle2, ChevronDown, ExternalLink,
-  History, Info, Loader2, Radio, RefreshCw, X, Zap
+  History, Info, Loader2, Radio, RefreshCw, Settings, X, Zap
 } from 'lucide-react';
 import { TokenSelector } from './TokenSelector';
 import { SafeAssetsToggle } from './SafeAssetsToggle';
@@ -61,6 +61,7 @@ export function SwapView({
   isExecuting, txStatus, error,
   executeSwap, onBack, onToggleHistory, onTxStatusClear,
 }: SwapViewProps) {
+  const [showSettings, setShowSettings] = useState(false);
   const [showFromChainModal, setShowFromChainModal] = useState(false);
   const [showToChainModal, setShowToChainModal] = useState(false);
   const [expandedRoute, setExpandedRoute] = useState<string | null>(null);
@@ -381,7 +382,9 @@ export function SwapView({
   // ── Quote panel state ──
   const anyQuote = PROVIDER_META.some(({ key }) => quotes[key] != null);
   const showLoadingCard = isQuoting && !anyQuote && isValidSwapInput(draft);
-  const showQuotesPanel = showLoadingCard || anyQuote;
+  // All providers responded but none returned a route.
+  const noQuotesReturned = !isQuoting && !anyQuote && isValidSwapInput(draft) && Object.keys(quotes).length > 0;
+  const showQuotesPanel = showLoadingCard || anyQuote || noQuotesReturned;
 
   /** ID of the quote with the lowest fee — independent of user selection. */
   const objectivelyBestId = useMemo(() => {
@@ -443,6 +446,17 @@ export function SwapView({
             <X size={15} strokeWidth={2.5} />
           </button>
 
+          {/* Settings — top-right, left of History */}
+          <button
+            className="hf-card-corner-btn hf-card-corner-btn--settings"
+            onClick={() => setShowSettings(true)}
+            type="button"
+            aria-label="Settings"
+            title="Settings"
+          >
+            <Settings size={14} strokeWidth={1.75} />
+          </button>
+
           {/* History — top-right */}
           <button
             className="hf-card-corner-btn hf-card-corner-btn--right"
@@ -466,9 +480,27 @@ export function SwapView({
             <img src="/providers/meson.png" alt="Meson" className="hf-swap-powered-logo" />
           </div>
 
-          <div className="hf-safe-toggle-row">
-            <SafeAssetsToggle />
-          </div>
+          {/* Settings overlay panel */}
+          {showSettings && (
+            <div className="hf-settings-overlay">
+              <div className="hf-settings-panel hf-fadeup">
+                <div className="hf-settings-header">
+                  <span>Settings</span>
+                  <button
+                    type="button"
+                    className="hf-dropdown-close"
+                    onClick={() => setShowSettings(false)}
+                    aria-label="Close settings"
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+                <div className="hf-settings-body">
+                  <SafeAssetsToggle />
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Quote Refresh Countdown */}
           <AnimatePresence>
@@ -852,6 +884,14 @@ export function SwapView({
                   <div className="hf-route-loading-card">
                     <Loader2 size={12} className="hf-spin" />
                     <span>Finding best route…</span>
+                  </div>
+                ) : noQuotesReturned ? (
+                  <div className="hf-no-quotes">
+                    <span className="hf-no-quotes-emoji">😿</span>
+                    <p className="hf-no-quotes-title">No routes found</p>
+                    <p className="hf-no-quotes-sub">
+                      All 7 providers came up empty for this pair. Try a different token, chain, or amount.
+                    </p>
                   </div>
                 ) : (
                   sortedRoutes.map(({ key, label, logo, pQuote, pLoading, definitivelyFailed }) => {

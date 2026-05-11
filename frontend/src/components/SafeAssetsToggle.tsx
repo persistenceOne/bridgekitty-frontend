@@ -10,14 +10,21 @@ export function SafeAssetsToggle() {
       aria-checked={on}
       className={`hf-safe-toggle ${on ? 'hf-safe-toggle--on' : ''}`}
       onClick={toggleSafeAssetsOnly}
-      title={
-        on
-          ? 'Showing only native tokens, BTC variants (WBTC/BTCB/cbBTC), and stablecoins (USDC/USDT/DAI). Click to show all tokens.'
-          : 'Showing all supported tokens. Click to limit to native, BTC variants, and stablecoins only.'
-      }
     >
-      <ShieldCheck size={11} />
-      <span>Safe assets only</span>
+      <span className="hf-safe-toggle-label">
+        <ShieldCheck
+          size={15}
+          className={`hf-safe-toggle-icon ${on ? 'hf-safe-toggle-icon--on' : ''}`}
+        />
+        <span className="hf-safe-toggle-text">
+          <span className="hf-safe-toggle-title">Safe mode</span>
+          <span className="hf-safe-toggle-desc">
+            {on
+              ? 'Showing native tokens, BTC variants (WBTC, BTCB, cbBTC) and stablecoins (USDC, USDT, DAI) only.'
+              : 'All supported tokens are visible. Toggle on to restrict to trusted assets only.'}
+          </span>
+        </span>
+      </span>
       <span className={`hf-safe-toggle-track ${on ? 'hf-safe-toggle-track--on' : ''}`}>
         <span className="hf-safe-toggle-thumb" />
       </span>
