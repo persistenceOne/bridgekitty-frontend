@@ -63,7 +63,7 @@ export const FALLBACK_CATALOG: { chains: Chain[]; tokensByChainKey: Record<strin
       "key": "bitlayer",
       "chainId": 200901,
       "name": "Bitlayer",
-      "logoURI": "/chains/bitlayer.png",
+      "logoURI": "/chains/bitlayer.svg",
       "blockExplorerUrl": "https://www.btrscan.com/tx/"
     },
     {
