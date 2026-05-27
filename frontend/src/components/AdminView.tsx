@@ -78,6 +78,13 @@ interface NewWalletPoint { date: string; count: number }
 interface RevenuePoint { date: string; integratorFeeUsd: number; totalFeeUsd: number }
 interface StatusRow { status: string; count: number }
 
+/**
+ * Shape we render against, *after* normalization in loadAll. The runtime
+ * response from the backend may omit any of these arrays (older BE
+ * versions don't include the chainFlow/dauSeries/etc. series). loadAll
+ * substitutes `[]` for missing arrays so the rest of the component can
+ * treat them as always-present-but-possibly-empty.
+ */
 interface OverviewData {
   databaseAvailable: boolean;
   period: string;
@@ -96,6 +103,37 @@ interface OverviewData {
   newWalletsSeries: NewWalletPoint[];
   revenueSeries: RevenuePoint[];
   statusFunnel: StatusRow[];
+}
+
+/** Raw shape as the wire actually returns — every array optional so we
+ *  don't crash when the deployed backend predates one of the analytics
+ *  extensions. */
+interface OverviewResponse extends Partial<OverviewData> {
+  databaseAvailable?: boolean;
+  period?: string;
+  windowStart?: string;
+}
+
+function normalizeOverview(o: OverviewResponse): OverviewData {
+  return {
+    databaseAvailable: o.databaseAvailable ?? false,
+    period: o.period ?? '7d',
+    windowStart: o.windowStart ?? '',
+    uniqueUsers: o.uniqueUsers ?? 0,
+    swapVolumeUsd: o.swapVolumeUsd ?? 0,
+    swapCount: o.swapCount ?? 0,
+    successRate: o.successRate ?? 0,
+    avgDurationMs: o.avgDurationMs ?? 0,
+    dailySeries: o.dailySeries ?? [],
+    topChains: o.topChains ?? [],
+    topTokens: o.topTokens ?? [],
+    providerMix: o.providerMix ?? [],
+    chainFlow: o.chainFlow ?? [],
+    dauSeries: o.dauSeries ?? [],
+    newWalletsSeries: o.newWalletsSeries ?? [],
+    revenueSeries: o.revenueSeries ?? [],
+    statusFunnel: o.statusFunnel ?? [],
+  };
 }
 
 interface UserRow {
@@ -384,7 +422,11 @@ export function AdminView({ onBack }: Props) {
         return;
       }
       const [o, u, t, p] = await Promise.all([oRes.json(), uRes.json(), tRes.json(), pRes.json()]);
-      setOverview(o);
+      // Normalize the overview so any analytics-series the deployed backend
+      // doesn't yet emit (chainFlow, dauSeries, etc.) become empty arrays
+      // instead of `undefined`. The render path uses `.length > 0` checks
+      // and would crash on undefined.
+      setOverview(normalizeOverview(o));
       setUsers(u.users ?? []);
       setUsersTotal(u.total ?? 0);
       setTelemetry(t.events ?? []);
