@@ -8,6 +8,34 @@ import {
 import { PROVIDER_META } from '../constants';
 
 /**
+ * Known chain names for chainIds we encounter in telemetry but don't carry
+ * in our curated catalog (no swap routes through them yet, so no logo
+ * either). Without this, the badge would render the raw number — "42161"
+ * is meaningless to anyone who doesn't have ChainList memorized.
+ *
+ * Keep this small and obviously-correct; promote anything we route through
+ * into the catalog proper instead of bloating this fallback.
+ */
+const FALLBACK_CHAIN_NAMES: Record<number, string> = {
+  1: 'Ethereum',
+  10: 'Optimism',
+  56: 'BNB Chain',
+  100: 'Gnosis',
+  137: 'Polygon',
+  250: 'Fantom',
+  324: 'zkSync Era',
+  1101: 'Polygon zkEVM',
+  5000: 'Mantle',
+  8453: 'Base',
+  42161: 'Arbitrum',
+  42220: 'Celo',
+  43114: 'Avalanche',
+  59144: 'Linea',
+  81457: 'Blast',
+  534352: 'Scroll',
+};
+
+/**
  * Inline-image badges for chains, tokens, and providers. Each shows the
  * SVG/PNG logo from the same catalog the swap-page token selector uses, with
  * the human-readable name as a `title` (browser-native tooltip on hover).
@@ -35,9 +63,14 @@ export function ChainBadge({ chainKey, chainId, size = 18, className, withLabel 
   const byKey = useChainByKey(chainKey ?? '');
   const byId = useChainByChainId(chainId ?? -1);
   const chain = chainKey ? byKey : byId;
-  const fallbackText = chainKey ?? (chainId != null ? String(chainId) : '?');
 
   if (!chain) {
+    // No logo available — use the known-id name table, or the raw key, or
+    // "Chain {id}" as a last resort. Capitalized so it reads as a name.
+    const fallbackText =
+      (chainId != null && FALLBACK_CHAIN_NAMES[chainId]) ||
+      chainKey ||
+      (chainId != null ? `Chain ${chainId}` : '?');
     return (
       <span className={`hf-badge-fallback ${className ?? ''}`} title={fallbackText}>
         {fallbackText}
