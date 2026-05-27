@@ -4,6 +4,8 @@ import {
   ResponsiveContainer,
   LineChart,
   Line,
+  AreaChart,
+  Area,
   XAxis,
   YAxis,
   Tooltip,
@@ -18,12 +20,26 @@ interface DailyPoint {
   swaps: number;
 }
 
+interface CumulativePoint {
+  date: string;
+  swaps: number;
+  wallets: number;
+}
+
+interface CorridorRow {
+  from: string;
+  to: string;
+  swaps: number;
+}
+
 interface StatsData {
   period: string;
   uniqueUsers: number;
   swapVolumeUsd: number;
   swapCount: number;
   dailySeries?: DailyPoint[];
+  cumulativeSeries?: CumulativePoint[];
+  topCorridors?: CorridorRow[];
 }
 
 function formatUsd(n: number): string {
@@ -58,6 +74,8 @@ export function StatsView({ onBack }: Props) {
   }, [period]);
 
   const series = data?.dailySeries ?? [];
+  const cumulative = data?.cumulativeSeries ?? [];
+  const corridors = data?.topCorridors ?? [];
 
   return (
     <motion.main
@@ -145,6 +163,86 @@ export function StatsView({ onBack }: Props) {
                   </LineChart>
                 </ResponsiveContainer>
               </div>
+            </div>
+          )}
+
+          {cumulative.length > 0 && (
+            <div className="hf-stats-section" style={{ marginTop: '1.25rem' }}>
+              <p className="hf-stats-section-title">Cumulative growth</p>
+              <div style={{ width: '100%', height: 220 }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={cumulative} margin={{ top: 6, right: 8, bottom: 0, left: -16 }}>
+                    <defs>
+                      <linearGradient id="growthSwaps" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#e59636" stopOpacity={0.4} />
+                        <stop offset="95%" stopColor="#e59636" stopOpacity={0.02} />
+                      </linearGradient>
+                      <linearGradient id="growthWallets" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#c97d1e" stopOpacity={0.35} />
+                        <stop offset="95%" stopColor="#c97d1e" stopOpacity={0.02} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid stroke="rgba(229, 150, 54, 0.12)" strokeDasharray="3 3" vertical={false} />
+                    <XAxis
+                      dataKey="date"
+                      tick={{ fontSize: 10, fill: 'rgba(29, 19, 6, 0.55)' }}
+                      tickFormatter={(d: string) => d.slice(5)}
+                      stroke="rgba(229, 150, 54, 0.25)"
+                      interval={0}
+                    />
+                    <YAxis
+                      tick={{ fontSize: 10, fill: 'rgba(29, 19, 6, 0.55)' }}
+                      stroke="rgba(229, 150, 54, 0.25)"
+                      allowDecimals={false}
+                    />
+                    <Tooltip
+                      contentStyle={{
+                        background: '#fff',
+                        border: '1px solid rgba(229, 150, 54, 0.3)',
+                        borderRadius: 8,
+                        fontSize: 12,
+                      }}
+                      labelStyle={{ fontWeight: 600 }}
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="swaps"
+                      stroke="#e59636"
+                      strokeWidth={2}
+                      fill="url(#growthSwaps)"
+                      name="Total swaps"
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="wallets"
+                      stroke="#c97d1e"
+                      strokeWidth={2}
+                      fill="url(#growthWallets)"
+                      name="Total users"
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          )}
+
+          {corridors.length > 0 && (
+            <div className="hf-stats-section" style={{ marginTop: '1.25rem' }}>
+              <p className="hf-stats-section-title">Top routes</p>
+              <ul className="hf-stats-corridor-list">
+                {corridors.map((c) => (
+                  <li key={`${c.from}-${c.to}`} className="hf-stats-corridor-row">
+                    <span className="hf-stats-corridor-route">
+                      <span className="hf-stats-corridor-chain">{c.from}</span>
+                      <span className="hf-stats-corridor-arrow">→</span>
+                      <span className="hf-stats-corridor-chain">{c.to}</span>
+                    </span>
+                    <span className="hf-stats-corridor-count">
+                      {c.swaps.toLocaleString()} {c.swaps === 1 ? 'swap' : 'swaps'}
+                    </span>
+                  </li>
+                ))}
+              </ul>
             </div>
           )}
         </>

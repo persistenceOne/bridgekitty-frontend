@@ -6,6 +6,9 @@ import {
   Line,
   BarChart,
   Bar,
+  AreaChart,
+  Area,
+  Sankey,
   XAxis,
   YAxis,
   Tooltip,
@@ -67,6 +70,11 @@ interface DailyPoint { date: string; swaps: number; volume: number }
 interface ChainRow { chain: string; swaps: number; volume: number }
 interface TokenRow { token: string; swaps: number }
 interface ProviderRow { provider: string; swaps: number; volume: number }
+interface FlowRow { from: string; to: string; swaps: number; volume: number }
+interface DauPoint { date: string; wallets: number }
+interface NewWalletPoint { date: string; count: number }
+interface RevenuePoint { date: string; integratorFeeUsd: number; totalFeeUsd: number }
+interface StatusRow { status: string; count: number }
 
 interface OverviewData {
   databaseAvailable: boolean;
@@ -81,6 +89,11 @@ interface OverviewData {
   topChains: ChainRow[];
   topTokens: TokenRow[];
   providerMix: ProviderRow[];
+  chainFlow: FlowRow[];
+  dauSeries: DauPoint[];
+  newWalletsSeries: NewWalletPoint[];
+  revenueSeries: RevenuePoint[];
+  statusFunnel: StatusRow[];
 }
 
 interface UserRow {
@@ -139,6 +152,89 @@ const TOOLTIP_STYLE = {
   borderRadius: 8,
   fontSize: 12,
 };
+
+// Canonical funnel stage order. Statuses outside this list are shown after
+// "failed" so unexpected statuses don't disappear.
+const FUNNEL_ORDER = ['submitted', 'confirming', 'confirmed', 'bridging', 'completed', 'failed'];
+
+function orderStatusFunnel(rows: StatusRow[]): StatusRow[] {
+  const byStatus = new Map(rows.map((r) => [r.status, r]));
+  const ordered: StatusRow[] = [];
+  for (const status of FUNNEL_ORDER) {
+    const r = byStatus.get(status);
+    if (r) {
+      ordered.push(r);
+      byStatus.delete(status);
+    }
+  }
+  for (const remaining of byStatus.values()) ordered.push(remaining);
+  return ordered;
+}
+
+interface SankeyData {
+  nodes: { name: string }[];
+  links: { source: number; target: number; value: number }[];
+}
+
+/**
+ * Custom Sankey node — recharts' default node is just a colored rectangle
+ * with no label, which makes the diagram unreadable. This wraps the rect
+ * and adds an aligned text label outside the node (left of source nodes,
+ * right of target nodes — we detect which side by x position relative to
+ * the container width).
+ */
+function SankeyNodeWithLabel(props: {
+  x?: number;
+  y?: number;
+  width?: number;
+  height?: number;
+  payload?: { name?: string };
+  containerWidth?: number;
+}) {
+  const { x = 0, y = 0, width = 0, height = 0, payload, containerWidth = 0 } = props;
+  const name = payload?.name ?? '';
+  const isSource = x + width / 2 < containerWidth / 2;
+  return (
+    <g>
+      <rect x={x} y={y} width={width} height={height} fill="#e59636" fillOpacity={0.9} />
+      <text
+        x={isSource ? x - 6 : x + width + 6}
+        y={y + height / 2}
+        textAnchor={isSource ? 'end' : 'start'}
+        dominantBaseline="middle"
+        fontSize={10}
+        fill="rgba(29, 19, 6, 0.75)"
+        style={{ textTransform: 'capitalize' }}
+      >
+        {name}
+      </text>
+    </g>
+  );
+}
+
+/**
+ * Recharts <Sankey/> takes {nodes, links} where source/target are indices
+ * into nodes. We use suffixed node names ("ethereum →" / "→ ethereum") so
+ * the same chain can appear as both source and destination without
+ * creating cycles. Self-loops (e.g. base→base internal routes) are
+ * filtered out — Sankey can't render them coherently.
+ */
+function buildSankey(flow: FlowRow[]): SankeyData {
+  const filtered = flow.filter((f) => f.from !== f.to && f.swaps > 0);
+  const sources = Array.from(new Set(filtered.map((f) => f.from)));
+  const targets = Array.from(new Set(filtered.map((f) => f.to)));
+  const nodes = [
+    ...sources.map((s) => ({ name: `${s} →` })),
+    ...targets.map((t) => ({ name: `→ ${t}` })),
+  ];
+  const links = filtered.map((f) => ({
+    source: sources.indexOf(f.from),
+    target: sources.length + targets.indexOf(f.to),
+    value: f.swaps,
+  }));
+  return { nodes, links };
+}
+
 
 export function AdminView({ onBack }: Props) {
   const [token, setToken] = useState<string>(() => sessionStorage.getItem(TOKEN_KEY) ?? '');
@@ -346,6 +442,109 @@ export function AdminView({ onBack }: Props) {
                     <Line yAxisId="left" type="monotone" dataKey="swaps" stroke="#e59636" strokeWidth={2} dot={{ r: 3 }} name="Swaps" />
                     <Line yAxisId="right" type="monotone" dataKey="volume" stroke="#c97d1e" strokeWidth={2} strokeDasharray="4 4" dot={false} name="Volume USD" />
                   </LineChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          )}
+
+          {overview.chainFlow.length > 0 && (() => {
+            const sankey = buildSankey(overview.chainFlow);
+            if (sankey.links.length === 0) return null;
+            return (
+              <div className="hf-admin-panel">
+                <p className="hf-admin-panel-title">Chain-to-chain flow</p>
+                <div style={{ width: '100%', height: 320 }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <Sankey
+                      data={sankey}
+                      nodePadding={24}
+                      nodeWidth={12}
+                      margin={{ top: 8, right: 100, bottom: 8, left: 100 }}
+                      link={{ stroke: '#e59636', strokeOpacity: 0.35 }}
+                      node={<SankeyNodeWithLabel />}
+                    >
+                      <Tooltip contentStyle={TOOLTIP_STYLE} />
+                    </Sankey>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            );
+          })()}
+
+          {(overview.dauSeries.length > 0 || overview.newWalletsSeries.length > 0) && (
+            <div className="hf-admin-charts-row">
+              {overview.dauSeries.length > 0 && (
+                <div className="hf-admin-panel">
+                  <p className="hf-admin-panel-title">Daily active wallets</p>
+                  <div style={{ width: '100%', height: 220 }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={overview.dauSeries} margin={{ top: 6, right: 16, bottom: 0, left: -8 }}>
+                        <CartesianGrid stroke={GRID_STROKE} strokeDasharray="3 3" vertical={false} />
+                        <XAxis dataKey="date" tick={AXIS_TICK} tickFormatter={(d: string) => d.slice(5)} stroke={AXIS_STROKE} interval={0} />
+                        <YAxis tick={AXIS_TICK} stroke={AXIS_STROKE} allowDecimals={false} />
+                        <Tooltip contentStyle={TOOLTIP_STYLE} />
+                        <Line type="monotone" dataKey="wallets" stroke="#e59636" strokeWidth={2} dot={{ r: 3 }} />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+              )}
+              {overview.newWalletsSeries.length > 0 && (
+                <div className="hf-admin-panel">
+                  <p className="hf-admin-panel-title">New wallets per day</p>
+                  <div style={{ width: '100%', height: 220 }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={overview.newWalletsSeries} margin={{ top: 6, right: 16, bottom: 0, left: -8 }}>
+                        <CartesianGrid stroke={GRID_STROKE} strokeDasharray="3 3" vertical={false} />
+                        <XAxis dataKey="date" tick={AXIS_TICK} tickFormatter={(d: string) => d.slice(5)} stroke={AXIS_STROKE} interval={0} />
+                        <YAxis tick={AXIS_TICK} stroke={AXIS_STROKE} allowDecimals={false} />
+                        <Tooltip contentStyle={TOOLTIP_STYLE} />
+                        <Bar dataKey="count" fill="#c97d1e" radius={[3, 3, 0, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {overview.revenueSeries.length > 0 && (
+            <div className="hf-admin-panel">
+              <p className="hf-admin-panel-title">BridgeKitty revenue (integrator fees)</p>
+              <div style={{ width: '100%', height: 240 }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={overview.revenueSeries} margin={{ top: 6, right: 16, bottom: 0, left: -8 }}>
+                    <defs>
+                      <linearGradient id="revGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#e59636" stopOpacity={0.45} />
+                        <stop offset="95%" stopColor="#e59636" stopOpacity={0.02} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid stroke={GRID_STROKE} strokeDasharray="3 3" vertical={false} />
+                    <XAxis dataKey="date" tick={AXIS_TICK} tickFormatter={(d: string) => d.slice(5)} stroke={AXIS_STROKE} interval={0} />
+                    <YAxis tick={AXIS_TICK} stroke={AXIS_STROKE} tickFormatter={(v: number) => `$${v.toFixed(2)}`} />
+                    <Tooltip contentStyle={TOOLTIP_STYLE} />
+                    <Legend wrapperStyle={{ fontSize: 11, paddingTop: 4 }} />
+                    <Area type="monotone" dataKey="integratorFeeUsd" stroke="#e59636" strokeWidth={2} fill="url(#revGrad)" name="Integrator fee (revenue)" />
+                    <Area type="monotone" dataKey="totalFeeUsd" stroke="#c97d1e" strokeWidth={2} strokeDasharray="4 4" fillOpacity={0} name="Total fees (incl. gas/protocol)" />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          )}
+
+          {overview.statusFunnel.length > 0 && (
+            <div className="hf-admin-panel">
+              <p className="hf-admin-panel-title">Status funnel</p>
+              <div style={{ width: '100%', height: Math.max(140, orderStatusFunnel(overview.statusFunnel).length * 36 + 40) }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={orderStatusFunnel(overview.statusFunnel)} layout="vertical" margin={{ top: 4, right: 24, bottom: 4, left: 4 }}>
+                    <CartesianGrid stroke={GRID_STROKE} strokeDasharray="3 3" horizontal={false} />
+                    <XAxis type="number" tick={AXIS_TICK} stroke={AXIS_STROKE} allowDecimals={false} />
+                    <YAxis dataKey="status" type="category" tick={AXIS_TICK} stroke={AXIS_STROKE} width={90} />
+                    <Tooltip contentStyle={TOOLTIP_STYLE} />
+                    <Bar dataKey="count" fill="#e59636" radius={[0, 4, 4, 0]} />
+                  </BarChart>
                 </ResponsiveContainer>
               </div>
             </div>

@@ -3929,6 +3929,49 @@ button {
   align-items: stretch;
 }
 
+/* ─── Top routes list (public stats) ────────────────── */
+.hf-stats-corridor-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.hf-stats-corridor-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.55rem 0.85rem;
+  background: var(--hf-bg-card);
+  border: 1px solid var(--hf-border);
+  border-radius: var(--hf-radius-sm);
+}
+
+.hf-stats-corridor-route {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.78rem;
+}
+
+.hf-stats-corridor-chain {
+  font-weight: 600;
+  color: var(--hf-text-primary);
+  text-transform: capitalize;
+}
+
+.hf-stats-corridor-arrow {
+  color: var(--hf-text-muted);
+}
+
+.hf-stats-corridor-count {
+  font-size: 0.7rem;
+  color: var(--hf-text-muted);
+  font-family: var(--hf-mono);
+}
+
 /* ─── Admin dashboard ────────────────────────────────── */
 /* Full-bleed wrapper — drops the narrow card frame used by the consumer
    stats view in favor of a dashboard-style layout. Centered up to 1320px
