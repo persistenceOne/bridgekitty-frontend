@@ -1,7 +1,7 @@
 import type { ChainKey } from './lib/chains';
 import type { TxStage as StatusTxStage } from './services/transactionStatusService';
 
-export type EntryView = 'landing' | 'human' | 'agent' | 'stats';
+export type EntryView = 'landing' | 'human' | 'agent' | 'stats' | 'admin';
 
 export type ProviderKey = 'lifi' | 'debridge' | 'squid' | 'relay' | 'across' | 'symbiosis' | 'meson';
 

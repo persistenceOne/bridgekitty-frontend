@@ -11,6 +11,7 @@ import { LandingView } from './components/LandingView';
 import { AgentView } from './components/AgentView';
 import { SwapView } from './components/SwapView';
 import { StatsView } from './components/StatsView';
+import { AdminView } from './components/AdminView';
 import { TransactionHistoryModal } from './components/TransactionHistoryModal';
 import { loadCatalog, useCatalogReady, useChainByKey, useTokensFor } from './lib/catalogStore';
 import { usePrices } from './hooks/usePrices';
@@ -128,6 +129,16 @@ function App() {
     window.scrollTo({ top: 0, behavior: 'instant' });
   }, [view]);
 
+  // ── Hidden admin route: only reachable via #admin in the URL. No nav link. ──
+  useEffect(() => {
+    const sync = () => {
+      if (window.location.hash === '#admin') setView('admin');
+    };
+    sync();
+    window.addEventListener('hashchange', sync);
+    return () => window.removeEventListener('hashchange', sync);
+  }, []);
+
   // ── Swap execution wrapper ──
   const handleExecuteSwap = useCallback(() => {
     if (!bestQuote) return;
@@ -207,6 +218,15 @@ function App() {
 
         {view === 'stats' && (
           <StatsView onBack={() => setView('landing')} />
+        )}
+
+        {view === 'admin' && (
+          <AdminView onBack={() => {
+            if (window.location.hash === '#admin') {
+              history.replaceState(null, '', window.location.pathname + window.location.search);
+            }
+            setView('landing');
+          }} />
         )}
 
         {view === 'human' && !catalogReady && (
