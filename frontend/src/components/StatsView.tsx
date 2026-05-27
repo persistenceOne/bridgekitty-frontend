@@ -1,14 +1,29 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
+import {
+  ResponsiveContainer,
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  Tooltip,
+  CartesianGrid,
+} from 'recharts';
 import { API_BASE_URL } from '../constants';
 
 type Period = '7d' | '15d' | '30d';
+
+interface DailyPoint {
+  date: string;
+  swaps: number;
+}
 
 interface StatsData {
   period: string;
   uniqueUsers: number;
   swapVolumeUsd: number;
   swapCount: number;
+  dailySeries?: DailyPoint[];
 }
 
 function formatUsd(n: number): string {
@@ -41,6 +56,8 @@ export function StatsView({ onBack }: Props) {
       .then((d) => { setData(d); setLoading(false); })
       .catch(() => { setError('Failed to load stats.'); setLoading(false); });
   }, [period]);
+
+  const series = data?.dailySeries ?? [];
 
   return (
     <motion.main
@@ -89,6 +106,46 @@ export function StatsView({ onBack }: Props) {
             </div>
           </div>
 
+          {series.length > 0 && (
+            <div className="hf-stats-section" style={{ marginTop: '1.25rem' }}>
+              <p className="hf-stats-section-title">Daily Swaps</p>
+              <div style={{ width: '100%', height: 220 }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={series} margin={{ top: 6, right: 8, bottom: 0, left: -16 }}>
+                    <CartesianGrid stroke="rgba(229, 150, 54, 0.12)" strokeDasharray="3 3" vertical={false} />
+                    <XAxis
+                      dataKey="date"
+                      tick={{ fontSize: 10, fill: 'rgba(29, 19, 6, 0.55)' }}
+                      tickFormatter={(d: string) => d.slice(5)}
+                      stroke="rgba(229, 150, 54, 0.25)"
+                    />
+                    <YAxis
+                      tick={{ fontSize: 10, fill: 'rgba(29, 19, 6, 0.55)' }}
+                      stroke="rgba(229, 150, 54, 0.25)"
+                      allowDecimals={false}
+                    />
+                    <Tooltip
+                      contentStyle={{
+                        background: '#fff',
+                        border: '1px solid rgba(229, 150, 54, 0.3)',
+                        borderRadius: 8,
+                        fontSize: 12,
+                      }}
+                      labelStyle={{ fontWeight: 600 }}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="swaps"
+                      stroke="#e59636"
+                      strokeWidth={2}
+                      dot={{ r: 3, fill: '#e59636' }}
+                      activeDot={{ r: 5 }}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          )}
         </>
       )}
 
