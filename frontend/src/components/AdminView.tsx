@@ -21,8 +21,47 @@ import { API_BASE_URL } from '../constants';
  */
 
 const TOKEN_KEY = 'bk_admin_token';
+const PAGE_SIZE = 25;
 
 type Period = '7d' | '15d' | '30d' | 'all';
+
+interface PaginationProps {
+  offset: number;
+  total: number;
+  onPrev: () => void;
+  onNext: () => void;
+}
+
+function Pagination({ offset, total, onPrev, onNext }: PaginationProps) {
+  if (total === 0) return null;
+  const start = offset + 1;
+  const end = Math.min(offset + PAGE_SIZE, total);
+  const hasPrev = offset > 0;
+  const hasNext = offset + PAGE_SIZE < total;
+  return (
+    <div className="hf-admin-pagination">
+      <span className="hf-admin-pagination-info">
+        {start.toLocaleString()}–{end.toLocaleString()} of {total.toLocaleString()}
+      </span>
+      <button
+        className="hf-admin-pagination-btn"
+        disabled={!hasPrev}
+        onClick={onPrev}
+        aria-label="Previous page"
+      >
+        ← Prev
+      </button>
+      <button
+        className="hf-admin-pagination-btn"
+        disabled={!hasNext}
+        onClick={onNext}
+        aria-label="Next page"
+      >
+        Next →
+      </button>
+    </div>
+  );
+}
 
 interface DailyPoint { date: string; swaps: number; volume: number }
 interface ChainRow { chain: string; swaps: number; volume: number }
@@ -107,7 +146,11 @@ export function AdminView({ onBack }: Props) {
   const [period, setPeriod] = useState<Period>('7d');
   const [overview, setOverview] = useState<OverviewData | null>(null);
   const [users, setUsers] = useState<UserRow[]>([]);
+  const [usersTotal, setUsersTotal] = useState(0);
+  const [usersOffset, setUsersOffset] = useState(0);
   const [telemetry, setTelemetry] = useState<TelemetryRow[]>([]);
+  const [telemetryTotal, setTelemetryTotal] = useState(0);
+  const [telemetryOffset, setTelemetryOffset] = useState(0);
   const [providers, setProviders] = useState<ProviderStatRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [authError, setAuthError] = useState('');
@@ -127,8 +170,8 @@ export function AdminView({ onBack }: Props) {
     try {
       const [oRes, uRes, tRes, pRes] = await Promise.all([
         authedFetch(`/overview?period=${period}`),
-        authedFetch(`/users?limit=50`),
-        authedFetch(`/telemetry/recent?limit=50`),
+        authedFetch(`/users?limit=${PAGE_SIZE}&offset=${usersOffset}`),
+        authedFetch(`/telemetry/recent?limit=${PAGE_SIZE}&offset=${telemetryOffset}`),
         authedFetch(`/providers`),
       ]);
       if (oRes.status === 401 || oRes.status === 503) {
@@ -141,18 +184,20 @@ export function AdminView({ onBack }: Props) {
       const [o, u, t, p] = await Promise.all([oRes.json(), uRes.json(), tRes.json(), pRes.json()]);
       setOverview(o);
       setUsers(u.users ?? []);
+      setUsersTotal(u.total ?? 0);
       setTelemetry(t.events ?? []);
+      setTelemetryTotal(t.total ?? 0);
       setProviders(p.providers ?? []);
     } catch {
       setAuthError('Network error');
     } finally {
       setLoading(false);
     }
-  }, [authedFetch, period, token]);
+  }, [authedFetch, period, token, usersOffset, telemetryOffset]);
 
   useEffect(() => {
     if (token) loadAll();
-  }, [token, period, loadAll]);
+  }, [token, period, usersOffset, telemetryOffset, loadAll]);
 
   const handleLogin = () => {
     const trimmed = tokenInput.trim();
@@ -167,7 +212,11 @@ export function AdminView({ onBack }: Props) {
     setToken('');
     setOverview(null);
     setUsers([]);
+    setUsersTotal(0);
+    setUsersOffset(0);
     setTelemetry([]);
+    setTelemetryTotal(0);
+    setTelemetryOffset(0);
     setProviders([]);
   };
 
@@ -371,9 +420,17 @@ export function AdminView({ onBack }: Props) {
             </div>
           )}
 
-          {users.length > 0 && (
+          {usersTotal > 0 && (
             <div className="hf-admin-panel">
-              <p className="hf-admin-panel-title">Wallets ({users.length})</p>
+              <div className="hf-admin-panel-header">
+                <p className="hf-admin-panel-title">Wallets</p>
+                <Pagination
+                  offset={usersOffset}
+                  total={usersTotal}
+                  onPrev={() => setUsersOffset((o) => Math.max(0, o - PAGE_SIZE))}
+                  onNext={() => setUsersOffset((o) => o + PAGE_SIZE)}
+                />
+              </div>
               <div className="hf-admin-table-scroll">
                 <table className="hf-admin-table">
                   <thead>
@@ -401,9 +458,17 @@ export function AdminView({ onBack }: Props) {
             </div>
           )}
 
-          {telemetry.length > 0 && (
+          {telemetryTotal > 0 && (
             <div className="hf-admin-panel">
-              <p className="hf-admin-panel-title">Recent telemetry</p>
+              <div className="hf-admin-panel-header">
+                <p className="hf-admin-panel-title">Recent telemetry</p>
+                <Pagination
+                  offset={telemetryOffset}
+                  total={telemetryTotal}
+                  onPrev={() => setTelemetryOffset((o) => Math.max(0, o - PAGE_SIZE))}
+                  onNext={() => setTelemetryOffset((o) => o + PAGE_SIZE)}
+                />
+              </div>
               <div className="hf-admin-table-scroll">
                 <table className="hf-admin-table">
                   <thead>

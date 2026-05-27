@@ -3983,6 +3983,55 @@ button {
   margin: 0 0 0.7rem;
 }
 
+.hf-admin-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.hf-admin-panel-header .hf-admin-panel-title {
+  margin: 0;
+}
+
+.hf-admin-pagination {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.hf-admin-pagination-info {
+  font-size: 0.66rem;
+  color: var(--hf-text-muted);
+  font-family: var(--hf-mono);
+  letter-spacing: 0.02em;
+}
+
+.hf-admin-pagination-btn {
+  padding: 0.28rem 0.65rem;
+  border-radius: 999px;
+  border: 1px solid var(--hf-border);
+  background: none;
+  font-size: 0.66rem;
+  font-weight: 600;
+  color: var(--hf-text-muted);
+  cursor: pointer;
+  transition: all var(--hf-transition);
+  letter-spacing: 0.03em;
+}
+
+.hf-admin-pagination-btn:hover:not(:disabled) {
+  border-color: var(--hf-primary);
+  color: var(--hf-primary);
+}
+
+.hf-admin-pagination-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
 .hf-admin-table-scroll {
   overflow-x: auto;
 }
