@@ -3918,3 +3918,125 @@ button {
   text-align: center;
   padding: 2rem 0;
 }
+
+/* ─── Wider public stats card ────────────────────────── */
+/* Modifier used by StatsView so the daily chart has room. */
+.hf-stats-wrap--wide {
+  max-width: 720px;
+  /* Stretch child sections so the chart fills the card. Without this,
+     the parent's align-items: center (inherited from .hf-content) keeps
+     children at their content width. */
+  align-items: stretch;
+}
+
+/* ─── Admin dashboard ────────────────────────────────── */
+/* Full-bleed wrapper — drops the narrow card frame used by the consumer
+   stats view in favor of a dashboard-style layout. Centered up to 1320px
+   so it works on small monitors without becoming a stretched mess on
+   ultra-wide displays. */
+.hf-admin-wrap {
+  padding: 1.5rem 1.75rem 3rem;
+  max-width: 1320px;
+  width: 100%;
+  margin: 1.25rem auto;
+  display: flex;
+  flex-direction: column;
+  /* Override the centered alignment that .hf-content imposes — child panels
+     and grids need to fill the dashboard width, not shrink to their content. */
+  align-items: stretch;
+  gap: 1.1rem;
+}
+
+.hf-admin-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.hf-admin-cards {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.75rem;
+}
+
+.hf-admin-charts-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.hf-admin-panel {
+  background: var(--hf-bg-card);
+  border: 1px solid var(--hf-border);
+  border-radius: 16px;
+  padding: 1.1rem 1.25rem;
+}
+
+.hf-admin-panel-title {
+  font-size: 0.66rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--hf-text-muted);
+  margin: 0 0 0.7rem;
+}
+
+.hf-admin-table-scroll {
+  overflow-x: auto;
+}
+
+.hf-admin-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.78rem;
+}
+
+.hf-admin-table thead th {
+  text-align: left;
+  font-size: 0.62rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--hf-text-muted);
+  padding: 0.45rem 0.65rem;
+  border-bottom: 1px solid var(--hf-border);
+  white-space: nowrap;
+}
+
+.hf-admin-table tbody td {
+  padding: 0.5rem 0.65rem;
+  border-bottom: 1px solid var(--hf-border);
+  vertical-align: top;
+}
+
+.hf-admin-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.hf-admin-table-mono {
+  font-family: var(--hf-mono);
+}
+
+.hf-admin-table-error {
+  color: #c62828;
+}
+
+@media (max-width: 960px) {
+  .hf-admin-cards {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .hf-admin-charts-row {
+    grid-template-columns: 1fr;
+  }
+  .hf-admin-wrap {
+    padding: 1rem 1rem 2rem;
+  }
+}
+
+@media (max-width: 540px) {
+  .hf-admin-cards {
+    grid-template-columns: 1fr;
+  }
+}

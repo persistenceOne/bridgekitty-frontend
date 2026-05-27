@@ -66,7 +66,7 @@ export function StatsView({ onBack }: Props) {
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -8 }}
       transition={{ duration: 0.2 }}
-      className="hf-content hf-stats-wrap"
+      className="hf-content hf-stats-wrap hf-stats-wrap--wide"
     >
       <button className="hf-stats-close" onClick={onBack} aria-label="Close">✕</button>
 
@@ -118,6 +118,7 @@ export function StatsView({ onBack }: Props) {
                       tick={{ fontSize: 10, fill: 'rgba(29, 19, 6, 0.55)' }}
                       tickFormatter={(d: string) => d.slice(5)}
                       stroke="rgba(229, 150, 54, 0.25)"
+                      interval={0}
                     />
                     <YAxis
                       tick={{ fontSize: 10, fill: 'rgba(29, 19, 6, 0.55)' }}

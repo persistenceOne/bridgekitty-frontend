@@ -10,6 +10,7 @@ import {
   YAxis,
   Tooltip,
   CartesianGrid,
+  Legend,
 } from 'recharts';
 import { API_BASE_URL } from '../constants';
 
@@ -90,6 +91,16 @@ interface Props {
   onBack: () => void;
 }
 
+const AXIS_TICK = { fontSize: 10, fill: 'rgba(29, 19, 6, 0.55)' };
+const AXIS_STROKE = 'rgba(229, 150, 54, 0.25)';
+const GRID_STROKE = 'rgba(229, 150, 54, 0.12)';
+const TOOLTIP_STYLE = {
+  background: '#fff',
+  border: '1px solid rgba(229, 150, 54, 0.3)',
+  borderRadius: 8,
+  fontSize: 12,
+};
+
 export function AdminView({ onBack }: Props) {
   const [token, setToken] = useState<string>(() => sessionStorage.getItem(TOKEN_KEY) ?? '');
   const [tokenInput, setTokenInput] = useState('');
@@ -116,8 +127,8 @@ export function AdminView({ onBack }: Props) {
     try {
       const [oRes, uRes, tRes, pRes] = await Promise.all([
         authedFetch(`/overview?period=${period}`),
-        authedFetch(`/users?limit=25`),
-        authedFetch(`/telemetry/recent?limit=25`),
+        authedFetch(`/users?limit=50`),
+        authedFetch(`/telemetry/recent?limit=50`),
         authedFetch(`/providers`),
       ]);
       if (oRes.status === 401 || oRes.status === 503) {
@@ -178,7 +189,7 @@ export function AdminView({ onBack }: Props) {
             <p className="hf-stats-range">Enter the admin token to continue</p>
           </div>
         </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', maxWidth: 420 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
           <input
             type="password"
             value={tokenInput}
@@ -208,16 +219,14 @@ export function AdminView({ onBack }: Props) {
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -8 }}
       transition={{ duration: 0.2 }}
-      className="hf-content hf-stats-wrap"
+      className="hf-content hf-admin-wrap"
     >
-      <button className="hf-stats-close" onClick={onBack} aria-label="Close">✕</button>
-
-      <div className="hf-stats-header">
+      <div className="hf-admin-header">
         <div className="hf-stats-header-left">
           <p className="hf-kicker">Internal</p>
           <h2 className="hf-stats-title">Admin Dashboard</h2>
           <p className="hf-stats-range">
-            Period: {period} · Window from {overview?.windowStart?.slice(0, 10) ?? '—'}
+            Period: {period.toUpperCase()} · Window from {overview?.windowStart?.slice(0, 10) ?? '—'}
           </p>
         </div>
         <div className="hf-stats-periods">
@@ -237,6 +246,7 @@ export function AdminView({ onBack }: Props) {
           >
             Logout
           </button>
+          <button className="hf-stats-close" onClick={onBack} aria-label="Close">✕</button>
         </div>
       </div>
 
@@ -244,7 +254,7 @@ export function AdminView({ onBack }: Props) {
 
       {overview && (
         <>
-          <div className="hf-stats-grid" style={{ gridTemplateColumns: 'repeat(4, 1fr)' }}>
+          <div className="hf-admin-cards">
             <div className="hf-stat-card">
               <p className="hf-stat-card-label">Unique Users</p>
               <p className="hf-stat-card-value">{overview.uniqueUsers.toLocaleString()}</p>
@@ -267,16 +277,23 @@ export function AdminView({ onBack }: Props) {
           </div>
 
           {overview.dailySeries.length > 0 && (
-            <div className="hf-stats-section" style={{ marginTop: '1.25rem' }}>
-              <p className="hf-stats-section-title">Daily swaps &amp; volume</p>
-              <div style={{ width: '100%', height: 240 }}>
+            <div className="hf-admin-panel">
+              <p className="hf-admin-panel-title">Daily swaps &amp; volume</p>
+              <div style={{ width: '100%', height: 280 }}>
                 <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={overview.dailySeries} margin={{ top: 6, right: 16, bottom: 0, left: -8 }}>
-                    <CartesianGrid stroke="rgba(229, 150, 54, 0.12)" strokeDasharray="3 3" vertical={false} />
-                    <XAxis dataKey="date" tick={{ fontSize: 10 }} tickFormatter={(d: string) => d.slice(5)} />
-                    <YAxis yAxisId="left" tick={{ fontSize: 10 }} allowDecimals={false} />
-                    <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 10 }} />
-                    <Tooltip contentStyle={{ background: '#fff', border: '1px solid rgba(229, 150, 54, 0.3)', borderRadius: 8, fontSize: 12 }} />
+                  <LineChart data={overview.dailySeries} margin={{ top: 8, right: 24, bottom: 4, left: 0 }}>
+                    <CartesianGrid stroke={GRID_STROKE} strokeDasharray="3 3" vertical={false} />
+                    <XAxis
+                      dataKey="date"
+                      tick={AXIS_TICK}
+                      tickFormatter={(d: string) => d.slice(5)}
+                      stroke={AXIS_STROKE}
+                      interval={0}
+                    />
+                    <YAxis yAxisId="left" tick={AXIS_TICK} stroke={AXIS_STROKE} allowDecimals={false} />
+                    <YAxis yAxisId="right" orientation="right" tick={AXIS_TICK} stroke={AXIS_STROKE} />
+                    <Tooltip contentStyle={TOOLTIP_STYLE} />
+                    <Legend wrapperStyle={{ fontSize: 11, paddingTop: 4 }} />
                     <Line yAxisId="left" type="monotone" dataKey="swaps" stroke="#e59636" strokeWidth={2} dot={{ r: 3 }} name="Swaps" />
                     <Line yAxisId="right" type="monotone" dataKey="volume" stroke="#c97d1e" strokeWidth={2} strokeDasharray="4 4" dot={false} name="Volume USD" />
                   </LineChart>
@@ -285,123 +302,142 @@ export function AdminView({ onBack }: Props) {
             </div>
           )}
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '0.5rem' }}>
-            {overview.topChains.length > 0 && (
-              <div className="hf-stats-section">
-                <p className="hf-stats-section-title">Top source chains</p>
-                <div style={{ width: '100%', height: 180 }}>
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={overview.topChains} layout="vertical" margin={{ top: 0, right: 8, bottom: 0, left: 8 }}>
-                      <XAxis type="number" tick={{ fontSize: 10 }} allowDecimals={false} />
-                      <YAxis dataKey="chain" type="category" tick={{ fontSize: 10 }} width={80} />
-                      <Tooltip contentStyle={{ fontSize: 12 }} />
-                      <Bar dataKey="swaps" fill="#e59636" />
-                    </BarChart>
-                  </ResponsiveContainer>
+          {(overview.topChains.length > 0 || overview.topTokens.length > 0) && (
+            <div className="hf-admin-charts-row">
+              {overview.topChains.length > 0 && (
+                <div className="hf-admin-panel">
+                  <p className="hf-admin-panel-title">Top source chains</p>
+                  <div style={{ width: '100%', height: 220 }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={overview.topChains} layout="vertical" margin={{ top: 4, right: 16, bottom: 4, left: 4 }}>
+                        <CartesianGrid stroke={GRID_STROKE} strokeDasharray="3 3" horizontal={false} />
+                        <XAxis type="number" tick={AXIS_TICK} stroke={AXIS_STROKE} allowDecimals={false} />
+                        <YAxis dataKey="chain" type="category" tick={AXIS_TICK} stroke={AXIS_STROKE} width={90} />
+                        <Tooltip contentStyle={TOOLTIP_STYLE} />
+                        <Bar dataKey="swaps" fill="#e59636" radius={[0, 4, 4, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
                 </div>
-              </div>
-            )}
-
-            {overview.topTokens.length > 0 && (
-              <div className="hf-stats-section">
-                <p className="hf-stats-section-title">Top source tokens</p>
-                <div style={{ width: '100%', height: 180 }}>
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={overview.topTokens} layout="vertical" margin={{ top: 0, right: 8, bottom: 0, left: 8 }}>
-                      <XAxis type="number" tick={{ fontSize: 10 }} allowDecimals={false} />
-                      <YAxis dataKey="token" type="category" tick={{ fontSize: 10 }} width={70} />
-                      <Tooltip contentStyle={{ fontSize: 12 }} />
-                      <Bar dataKey="swaps" fill="#c97d1e" />
-                    </BarChart>
-                  </ResponsiveContainer>
+              )}
+              {overview.topTokens.length > 0 && (
+                <div className="hf-admin-panel">
+                  <p className="hf-admin-panel-title">Top source tokens</p>
+                  <div style={{ width: '100%', height: 220 }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={overview.topTokens} layout="vertical" margin={{ top: 4, right: 16, bottom: 4, left: 4 }}>
+                        <CartesianGrid stroke={GRID_STROKE} strokeDasharray="3 3" horizontal={false} />
+                        <XAxis type="number" tick={AXIS_TICK} stroke={AXIS_STROKE} allowDecimals={false} />
+                        <YAxis dataKey="token" type="category" tick={AXIS_TICK} stroke={AXIS_STROKE} width={80} />
+                        <Tooltip contentStyle={TOOLTIP_STYLE} />
+                        <Bar dataKey="swaps" fill="#c97d1e" radius={[0, 4, 4, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
                 </div>
-              </div>
-            )}
-          </div>
+              )}
+            </div>
+          )}
 
           {providers.length > 0 && (
-            <div className="hf-stats-section">
-              <p className="hf-stats-section-title">Providers</p>
-              <table style={{ width: '100%', fontSize: '0.78rem', borderCollapse: 'collapse' }}>
-                <thead>
-                  <tr style={{ textAlign: 'left', color: 'rgba(29, 19, 6, 0.55)' }}>
-                    <th style={{ padding: '0.4rem 0.5rem' }}>Provider</th>
-                    <th style={{ padding: '0.4rem 0.5rem' }}>Executes</th>
-                    <th style={{ padding: '0.4rem 0.5rem' }}>Success</th>
-                    <th style={{ padding: '0.4rem 0.5rem' }}>Avg ms</th>
-                    <th style={{ padding: '0.4rem 0.5rem' }}>Lifetime quotes</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {providers.map((p) => (
-                    <tr key={p.provider} style={{ borderTop: '1px solid rgba(229, 150, 54, 0.15)' }}>
-                      <td style={{ padding: '0.4rem 0.5rem', fontWeight: 600 }}>{p.provider}</td>
-                      <td style={{ padding: '0.4rem 0.5rem' }}>{p.executes.toLocaleString()}</td>
-                      <td style={{ padding: '0.4rem 0.5rem' }}>{(p.successRate * 100).toFixed(1)}%</td>
-                      <td style={{ padding: '0.4rem 0.5rem' }}>{p.avgDurationMs.toLocaleString()}</td>
-                      <td style={{ padding: '0.4rem 0.5rem' }}>{p.lifetimeQuotes.toLocaleString()}</td>
+            <div className="hf-admin-panel">
+              <p className="hf-admin-panel-title">Providers</p>
+              <div className="hf-admin-table-scroll">
+                <table className="hf-admin-table">
+                  <thead>
+                    <tr>
+                      <th>Provider</th>
+                      <th>Executes</th>
+                      <th>Success</th>
+                      <th>Avg ms</th>
+                      <th>Lifetime quotes</th>
+                      <th>Lifetime executes</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {providers.map((p) => (
+                      <tr key={p.provider}>
+                        <td style={{ fontWeight: 600 }}>{p.provider}</td>
+                        <td>{p.executes.toLocaleString()}</td>
+                        <td>{(p.successRate * 100).toFixed(1)}%</td>
+                        <td>{p.avgDurationMs.toLocaleString()}</td>
+                        <td>{p.lifetimeQuotes.toLocaleString()}</td>
+                        <td>{p.lifetimeExecutes.toLocaleString()}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
 
           {users.length > 0 && (
-            <div className="hf-stats-section">
-              <p className="hf-stats-section-title">Wallets ({users.length})</p>
-              <table style={{ width: '100%', fontSize: '0.78rem', borderCollapse: 'collapse' }}>
-                <thead>
-                  <tr style={{ textAlign: 'left', color: 'rgba(29, 19, 6, 0.55)' }}>
-                    <th style={{ padding: '0.4rem 0.5rem' }}>Address</th>
-                    <th style={{ padding: '0.4rem 0.5rem' }}>Last seen</th>
-                    <th style={{ padding: '0.4rem 0.5rem' }}>Swaps</th>
-                    <th style={{ padding: '0.4rem 0.5rem' }}>Volume</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {users.map((u) => (
-                    <tr key={u.address} style={{ borderTop: '1px solid rgba(229, 150, 54, 0.15)' }}>
-                      <td style={{ padding: '0.4rem 0.5rem', fontFamily: 'var(--hf-mono)' }}>{shortAddr(u.address)}</td>
-                      <td style={{ padding: '0.4rem 0.5rem' }}>{u.lastSeen.slice(0, 10)}</td>
-                      <td style={{ padding: '0.4rem 0.5rem' }}>{u.swapCount.toLocaleString()}</td>
-                      <td style={{ padding: '0.4rem 0.5rem' }}>{formatUsd(u.volume)}</td>
+            <div className="hf-admin-panel">
+              <p className="hf-admin-panel-title">Wallets ({users.length})</p>
+              <div className="hf-admin-table-scroll">
+                <table className="hf-admin-table">
+                  <thead>
+                    <tr>
+                      <th>Address</th>
+                      <th>First seen</th>
+                      <th>Last seen</th>
+                      <th>Swaps</th>
+                      <th>Volume</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {users.map((u) => (
+                      <tr key={u.address}>
+                        <td className="hf-admin-table-mono" title={u.address}>{shortAddr(u.address)}</td>
+                        <td>{u.firstSeen.slice(0, 10)}</td>
+                        <td>{u.lastSeen.slice(0, 10)}</td>
+                        <td>{u.swapCount.toLocaleString()}</td>
+                        <td>{formatUsd(u.volume)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
 
           {telemetry.length > 0 && (
-            <div className="hf-stats-section">
-              <p className="hf-stats-section-title">Recent telemetry</p>
-              <table style={{ width: '100%', fontSize: '0.75rem', borderCollapse: 'collapse' }}>
-                <thead>
-                  <tr style={{ textAlign: 'left', color: 'rgba(29, 19, 6, 0.55)' }}>
-                    <th style={{ padding: '0.35rem 0.5rem' }}>Time</th>
-                    <th style={{ padding: '0.35rem 0.5rem' }}>Type</th>
-                    <th style={{ padding: '0.35rem 0.5rem' }}>Provider</th>
-                    <th style={{ padding: '0.35rem 0.5rem' }}>Success</th>
-                    <th style={{ padding: '0.35rem 0.5rem' }}>Duration</th>
-                    <th style={{ padding: '0.35rem 0.5rem' }}>State / Error</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {telemetry.map((e) => (
-                    <tr key={e.id} style={{ borderTop: '1px solid rgba(229, 150, 54, 0.15)' }}>
-                      <td style={{ padding: '0.35rem 0.5rem' }}>{new Date(e.createdAt).toLocaleString()}</td>
-                      <td style={{ padding: '0.35rem 0.5rem' }}>{e.type}</td>
-                      <td style={{ padding: '0.35rem 0.5rem' }}>{e.provider ?? '—'}</td>
-                      <td style={{ padding: '0.35rem 0.5rem' }}>{e.success == null ? '—' : e.success ? '✓' : '✕'}</td>
-                      <td style={{ padding: '0.35rem 0.5rem' }}>{e.durationMs != null ? `${e.durationMs}ms` : '—'}</td>
-                      <td style={{ padding: '0.35rem 0.5rem', color: e.error ? '#c62828' : undefined }}>
-                        {e.error ?? e.state ?? '—'}
-                      </td>
+            <div className="hf-admin-panel">
+              <p className="hf-admin-panel-title">Recent telemetry</p>
+              <div className="hf-admin-table-scroll">
+                <table className="hf-admin-table">
+                  <thead>
+                    <tr>
+                      <th>Time</th>
+                      <th>Type</th>
+                      <th>Provider</th>
+                      <th>Success</th>
+                      <th>Duration</th>
+                      <th>From → To</th>
+                      <th>State / Error</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {telemetry.map((e) => (
+                      <tr key={e.id}>
+                        <td>{new Date(e.createdAt).toLocaleString()}</td>
+                        <td>{e.type}</td>
+                        <td>{e.provider ?? '—'}</td>
+                        <td>{e.success == null ? '—' : e.success ? '✓' : '✕'}</td>
+                        <td>{e.durationMs != null ? `${e.durationMs}ms` : '—'}</td>
+                        <td>
+                          {e.fromChainId != null && e.toChainId != null
+                            ? `${e.fromChainId} → ${e.toChainId}`
+                            : '—'}
+                        </td>
+                        <td className={e.error ? 'hf-admin-table-error' : undefined}>
+                          {e.error ?? e.state ?? '—'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
         </>
