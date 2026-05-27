@@ -3919,6 +3919,38 @@ button {
   padding: 2rem 0;
 }
 
+/* ─── Asset badges (chains, tokens, providers) ────────── */
+/* Used by stats + admin dashboards to replace text labels with the same
+   SVG/PNG icons the swap selector uses. Title attribute on the wrapper
+   gives a native hover tooltip with the asset's human name. */
+.hf-badge-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  vertical-align: middle;
+}
+
+.hf-badge {
+  border-radius: 50%;
+  object-fit: cover;
+  display: inline-block;
+  vertical-align: middle;
+  background: var(--hf-bg-elevated);
+}
+
+.hf-badge-label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--hf-text-primary);
+}
+
+.hf-badge-fallback {
+  display: inline-block;
+  font-size: 0.72rem;
+  color: var(--hf-text-muted);
+  text-transform: capitalize;
+}
+
 /* ─── Wider public stats card ────────────────────────── */
 /* Modifier used by StatsView so the daily chart has room. */
 .hf-stats-wrap--wide {

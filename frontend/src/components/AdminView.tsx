@@ -16,6 +16,8 @@ import {
   Legend,
 } from 'recharts';
 import { API_BASE_URL } from '../constants';
+import { ChainBadge, TokenBadge, ProviderBadge } from './AssetBadge';
+import { getChainByKey, getToken, getChains as _getChains } from '../lib/catalogStore';
 
 /**
  * Admin-only analytics. Gated by the ADMIN_TOKEN backend secret — the user
@@ -177,11 +179,12 @@ interface SankeyData {
 }
 
 /**
- * Custom Sankey node — recharts' default node is just a colored rectangle
- * with no label, which makes the diagram unreadable. This wraps the rect
- * and adds an aligned text label outside the node (left of source nodes,
- * right of target nodes — we detect which side by x position relative to
- * the container width).
+ * Custom Sankey node — render the chain logo (with native tooltip via SVG
+ * <title>) outside the rectangle on the appropriate side. Fall back to the
+ * chain key if the catalog hasn't resolved this chain yet.
+ *
+ * The node payload.name is the raw chain key (e.g. "monad"). We resolve to
+ * a Chain via getChainByKey so we can render an <image> with the logoURI.
  */
 function SankeyNodeWithLabel(props: {
   x?: number;
@@ -192,22 +195,92 @@ function SankeyNodeWithLabel(props: {
   containerWidth?: number;
 }) {
   const { x = 0, y = 0, width = 0, height = 0, payload, containerWidth = 0 } = props;
-  const name = payload?.name ?? '';
+  const chainKey = payload?.name ?? '';
+  const chain = getChainByKey(chainKey);
   const isSource = x + width / 2 < containerWidth / 2;
+  const logoSize = 18;
+  const logoX = isSource ? x - logoSize - 6 : x + width + 6;
+  const logoY = y + height / 2 - logoSize / 2;
+  const tooltip = chain?.name ?? chainKey;
   return (
     <g>
+      <title>{tooltip}</title>
       <rect x={x} y={y} width={width} height={height} fill="#e59636" fillOpacity={0.9} />
-      <text
-        x={isSource ? x - 6 : x + width + 6}
-        y={y + height / 2}
-        textAnchor={isSource ? 'end' : 'start'}
-        dominantBaseline="middle"
-        fontSize={10}
-        fill="rgba(29, 19, 6, 0.75)"
-        style={{ textTransform: 'capitalize' }}
-      >
-        {name}
+      {chain ? (
+        <image
+          href={chain.logoURI}
+          x={logoX}
+          y={logoY}
+          width={logoSize}
+          height={logoSize}
+          clipPath="circle(9px at 9px 9px)"
+        />
+      ) : (
+        <text
+          x={isSource ? x - 6 : x + width + 6}
+          y={y + height / 2}
+          textAnchor={isSource ? 'end' : 'start'}
+          dominantBaseline="middle"
+          fontSize={10}
+          fill="rgba(29, 19, 6, 0.75)"
+        >
+          {chainKey}
+        </text>
+      )}
+    </g>
+  );
+}
+
+/** Custom recharts Y-axis tick that renders a chain logo (with tooltip) in
+ *  place of the raw chain key. */
+function ChainAxisTick(props: { x?: number; y?: number; payload?: { value: string } }) {
+  const { x = 0, y = 0, payload } = props;
+  const key = payload?.value ?? '';
+  const chain = getChainByKey(key);
+  if (!chain) {
+    return (
+      <text x={x - 6} y={y + 4} textAnchor="end" fontSize={10} fill="rgba(29, 19, 6, 0.55)">
+        {key}
       </text>
+    );
+  }
+  const size = 18;
+  return (
+    <g transform={`translate(${x - size - 4}, ${y - size / 2})`}>
+      <title>{chain.name}</title>
+      <image href={chain.logoURI} width={size} height={size} clipPath={`circle(${size / 2}px at ${size / 2}px ${size / 2}px)`} />
+    </g>
+  );
+}
+
+/** Custom recharts Y-axis tick that renders a token logo (with tooltip) in
+ *  place of the raw token symbol. Searches every chain for the symbol since
+ *  the BE doesn't tell us which chain the token came from. */
+function TokenAxisTick(props: { x?: number; y?: number; payload?: { value: string } }) {
+  const { x = 0, y = 0, payload } = props;
+  const symbol = payload?.value ?? '';
+  let logoURI: string | undefined;
+  let tokenName: string | undefined;
+  for (const chain of _getChains()) {
+    const found = getToken(chain.key, symbol);
+    if (found) {
+      logoURI = found.logoURI;
+      tokenName = found.name;
+      break;
+    }
+  }
+  if (!logoURI) {
+    return (
+      <text x={x - 6} y={y + 4} textAnchor="end" fontSize={10} fill="rgba(29, 19, 6, 0.55)">
+        {symbol}
+      </text>
+    );
+  }
+  const size = 18;
+  return (
+    <g transform={`translate(${x - size - 4}, ${y - size / 2})`}>
+      <title>{tokenName ? `${symbol} — ${tokenName}` : symbol}</title>
+      <image href={logoURI} width={size} height={size} clipPath={`circle(${size / 2}px at ${size / 2}px ${size / 2}px)`} />
     </g>
   );
 }
@@ -223,9 +296,11 @@ function buildSankey(flow: FlowRow[]): SankeyData {
   const filtered = flow.filter((f) => f.from !== f.to && f.swaps > 0);
   const sources = Array.from(new Set(filtered.map((f) => f.from)));
   const targets = Array.from(new Set(filtered.map((f) => f.to)));
+  // Use the raw chain key as the node name so the custom node component can
+  // resolve it via getChainByKey and render the catalog logo.
   const nodes = [
-    ...sources.map((s) => ({ name: `${s} →` })),
-    ...targets.map((t) => ({ name: `→ ${t}` })),
+    ...sources.map((s) => ({ name: s })),
+    ...targets.map((t) => ({ name: t })),
   ];
   const links = filtered.map((f) => ({
     source: sources.indexOf(f.from),
@@ -560,7 +635,7 @@ export function AdminView({ onBack }: Props) {
                       <BarChart data={overview.topChains} layout="vertical" margin={{ top: 4, right: 16, bottom: 4, left: 4 }}>
                         <CartesianGrid stroke={GRID_STROKE} strokeDasharray="3 3" horizontal={false} />
                         <XAxis type="number" tick={AXIS_TICK} stroke={AXIS_STROKE} allowDecimals={false} />
-                        <YAxis dataKey="chain" type="category" tick={AXIS_TICK} stroke={AXIS_STROKE} width={90} />
+                        <YAxis dataKey="chain" type="category" tick={<ChainAxisTick />} stroke={AXIS_STROKE} width={48} />
                         <Tooltip contentStyle={TOOLTIP_STYLE} />
                         <Bar dataKey="swaps" fill="#e59636" radius={[0, 4, 4, 0]} />
                       </BarChart>
@@ -576,7 +651,7 @@ export function AdminView({ onBack }: Props) {
                       <BarChart data={overview.topTokens} layout="vertical" margin={{ top: 4, right: 16, bottom: 4, left: 4 }}>
                         <CartesianGrid stroke={GRID_STROKE} strokeDasharray="3 3" horizontal={false} />
                         <XAxis type="number" tick={AXIS_TICK} stroke={AXIS_STROKE} allowDecimals={false} />
-                        <YAxis dataKey="token" type="category" tick={AXIS_TICK} stroke={AXIS_STROKE} width={80} />
+                        <YAxis dataKey="token" type="category" tick={<TokenAxisTick />} stroke={AXIS_STROKE} width={48} />
                         <Tooltip contentStyle={TOOLTIP_STYLE} />
                         <Bar dataKey="swaps" fill="#c97d1e" radius={[0, 4, 4, 0]} />
                       </BarChart>
@@ -605,7 +680,7 @@ export function AdminView({ onBack }: Props) {
                   <tbody>
                     {providers.map((p) => (
                       <tr key={p.provider}>
-                        <td style={{ fontWeight: 600 }}>{p.provider}</td>
+                        <td><ProviderBadge provider={p.provider} size={22} withLabel /></td>
                         <td>{p.executes.toLocaleString()}</td>
                         <td>{(p.successRate * 100).toFixed(1)}%</td>
                         <td>{p.avgDurationMs.toLocaleString()}</td>
@@ -686,13 +761,19 @@ export function AdminView({ onBack }: Props) {
                       <tr key={e.id}>
                         <td>{new Date(e.createdAt).toLocaleString()}</td>
                         <td>{e.type}</td>
-                        <td>{e.provider ?? '—'}</td>
+                        <td>{e.provider ? <ProviderBadge provider={e.provider} size={18} /> : '—'}</td>
                         <td>{e.success == null ? '—' : e.success ? '✓' : '✕'}</td>
                         <td>{e.durationMs != null ? `${e.durationMs}ms` : '—'}</td>
                         <td>
-                          {e.fromChainId != null && e.toChainId != null
-                            ? `${e.fromChainId} → ${e.toChainId}`
-                            : '—'}
+                          {e.fromChainId != null && e.toChainId != null ? (
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
+                              <ChainBadge chainId={e.fromChainId} size={16} />
+                              <span style={{ color: 'var(--hf-text-muted)' }}>→</span>
+                              <ChainBadge chainId={e.toChainId} size={16} />
+                            </span>
+                          ) : (
+                            '—'
+                          )}
                         </td>
                         <td className={e.error ? 'hf-admin-table-error' : undefined}>
                           {e.error ?? e.state ?? '—'}

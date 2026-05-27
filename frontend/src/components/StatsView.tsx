@@ -12,6 +12,7 @@ import {
   CartesianGrid,
 } from 'recharts';
 import { API_BASE_URL } from '../constants';
+import { ChainBadge } from './AssetBadge';
 
 type Period = '7d' | '15d' | '30d';
 
@@ -233,9 +234,9 @@ export function StatsView({ onBack }: Props) {
                 {corridors.map((c) => (
                   <li key={`${c.from}-${c.to}`} className="hf-stats-corridor-row">
                     <span className="hf-stats-corridor-route">
-                      <span className="hf-stats-corridor-chain">{c.from}</span>
+                      <ChainBadge chainKey={c.from} size={22} />
                       <span className="hf-stats-corridor-arrow">→</span>
-                      <span className="hf-stats-corridor-chain">{c.to}</span>
+                      <ChainBadge chainKey={c.to} size={22} />
                     </span>
                     <span className="hf-stats-corridor-count">
                       {c.swaps.toLocaleString()} {c.swaps === 1 ? 'swap' : 'swaps'}
