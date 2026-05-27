@@ -234,9 +234,9 @@ export function StatsView({ onBack }: Props) {
                 {corridors.map((c) => (
                   <li key={`${c.from}-${c.to}`} className="hf-stats-corridor-row">
                     <span className="hf-stats-corridor-route">
-                      <ChainBadge chainKey={c.from} size={22} />
+                      <ChainBadge chainKey={c.from} size={22} withLabel />
                       <span className="hf-stats-corridor-arrow">→</span>
-                      <ChainBadge chainKey={c.to} size={22} />
+                      <ChainBadge chainKey={c.to} size={22} withLabel />
                     </span>
                     <span className="hf-stats-corridor-count">
                       {c.swaps.toLocaleString()} {c.swaps === 1 ? 'swap' : 'swaps'}

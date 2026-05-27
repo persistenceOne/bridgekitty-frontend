@@ -197,65 +197,84 @@ function SankeyNodeWithLabel(props: {
   const { x = 0, y = 0, width = 0, height = 0, payload, containerWidth = 0 } = props;
   const chainKey = payload?.name ?? '';
   const chain = getChainByKey(chainKey);
+  const displayName = chain?.name ?? chainKey;
   const isSource = x + width / 2 < containerWidth / 2;
   const logoSize = 18;
-  const logoX = isSource ? x - logoSize - 6 : x + width + 6;
+  const gap = 6;
+  // Source nodes: text on left, logo right of text, then rect.
+  // Target nodes: rect, then logo, then text on the right.
+  const logoX = isSource ? x - logoSize - gap : x + width + gap;
   const logoY = y + height / 2 - logoSize / 2;
-  const tooltip = chain?.name ?? chainKey;
+  const textX = isSource ? x - logoSize - gap * 2 : x + width + logoSize + gap * 2;
   return (
     <g>
-      <title>{tooltip}</title>
+      <title>{displayName}</title>
       <rect x={x} y={y} width={width} height={height} fill="#e59636" fillOpacity={0.9} />
-      {chain ? (
+      {chain && (
         <image
           href={chain.logoURI}
           x={logoX}
           y={logoY}
           width={logoSize}
           height={logoSize}
-          clipPath="circle(9px at 9px 9px)"
         />
-      ) : (
-        <text
-          x={isSource ? x - 6 : x + width + 6}
-          y={y + height / 2}
-          textAnchor={isSource ? 'end' : 'start'}
-          dominantBaseline="middle"
-          fontSize={10}
-          fill="rgba(29, 19, 6, 0.75)"
-        >
-          {chainKey}
-        </text>
+      )}
+      <text
+        x={textX}
+        y={y + height / 2}
+        textAnchor={isSource ? 'end' : 'start'}
+        dominantBaseline="middle"
+        fontSize={11}
+        fontWeight={500}
+        fill="rgba(29, 19, 6, 0.78)"
+        style={{ textTransform: 'capitalize' }}
+      >
+        {displayName}
+      </text>
+    </g>
+  );
+}
+
+/** Custom recharts Y-axis tick: chain logo + name with native SVG title
+ *  tooltip. Falls back to raw key when the catalog hasn't resolved. */
+function ChainAxisTick(props: { x?: number; y?: number; payload?: { value: string } }) {
+  const { x = 0, y = 0, payload } = props;
+  const key = payload?.value ?? '';
+  const chain = getChainByKey(key);
+  const size = 16;
+  const labelGap = 4;
+  const label = chain?.name ?? key;
+  // Anchor everything to the right edge (Y-axis is on the left of a vertical
+  // BarChart, so ticks render to the left of x with textAnchor="end").
+  return (
+    <g transform={`translate(${x - labelGap}, ${y})`}>
+      <title>{label}</title>
+      <text
+        x={-(size + labelGap)}
+        y={4}
+        textAnchor="end"
+        fontSize={10}
+        fontWeight={500}
+        fill="rgba(29, 19, 6, 0.75)"
+        style={{ textTransform: 'capitalize' }}
+      >
+        {label}
+      </text>
+      {chain && (
+        <image
+          href={chain.logoURI}
+          x={-size}
+          y={-size / 2}
+          width={size}
+          height={size}
+        />
       )}
     </g>
   );
 }
 
-/** Custom recharts Y-axis tick that renders a chain logo (with tooltip) in
- *  place of the raw chain key. */
-function ChainAxisTick(props: { x?: number; y?: number; payload?: { value: string } }) {
-  const { x = 0, y = 0, payload } = props;
-  const key = payload?.value ?? '';
-  const chain = getChainByKey(key);
-  if (!chain) {
-    return (
-      <text x={x - 6} y={y + 4} textAnchor="end" fontSize={10} fill="rgba(29, 19, 6, 0.55)">
-        {key}
-      </text>
-    );
-  }
-  const size = 18;
-  return (
-    <g transform={`translate(${x - size - 4}, ${y - size / 2})`}>
-      <title>{chain.name}</title>
-      <image href={chain.logoURI} width={size} height={size} clipPath={`circle(${size / 2}px at ${size / 2}px ${size / 2}px)`} />
-    </g>
-  );
-}
-
-/** Custom recharts Y-axis tick that renders a token logo (with tooltip) in
- *  place of the raw token symbol. Searches every chain for the symbol since
- *  the BE doesn't tell us which chain the token came from. */
+/** Custom recharts Y-axis tick: token logo + symbol. Searches every chain
+ *  for the symbol since the BE doesn't tell us which chain it came from. */
 function TokenAxisTick(props: { x?: number; y?: number; payload?: { value: string } }) {
   const { x = 0, y = 0, payload } = props;
   const symbol = payload?.value ?? '';
@@ -269,18 +288,30 @@ function TokenAxisTick(props: { x?: number; y?: number; payload?: { value: strin
       break;
     }
   }
-  if (!logoURI) {
-    return (
-      <text x={x - 6} y={y + 4} textAnchor="end" fontSize={10} fill="rgba(29, 19, 6, 0.55)">
+  const size = 16;
+  const labelGap = 4;
+  return (
+    <g transform={`translate(${x - labelGap}, ${y})`}>
+      <title>{tokenName ? `${symbol} — ${tokenName}` : symbol}</title>
+      <text
+        x={-(size + labelGap)}
+        y={4}
+        textAnchor="end"
+        fontSize={10}
+        fontWeight={500}
+        fill="rgba(29, 19, 6, 0.75)"
+      >
         {symbol}
       </text>
-    );
-  }
-  const size = 18;
-  return (
-    <g transform={`translate(${x - size - 4}, ${y - size / 2})`}>
-      <title>{tokenName ? `${symbol} — ${tokenName}` : symbol}</title>
-      <image href={logoURI} width={size} height={size} clipPath={`circle(${size / 2}px at ${size / 2}px ${size / 2}px)`} />
+      {logoURI && (
+        <image
+          href={logoURI}
+          x={-size}
+          y={-size / 2}
+          width={size}
+          height={size}
+        />
+      )}
     </g>
   );
 }
@@ -534,7 +565,7 @@ export function AdminView({ onBack }: Props) {
                       data={sankey}
                       nodePadding={24}
                       nodeWidth={12}
-                      margin={{ top: 8, right: 100, bottom: 8, left: 100 }}
+                      margin={{ top: 8, right: 140, bottom: 8, left: 140 }}
                       link={{ stroke: '#e59636', strokeOpacity: 0.35 }}
                       node={<SankeyNodeWithLabel />}
                     >
@@ -635,7 +666,7 @@ export function AdminView({ onBack }: Props) {
                       <BarChart data={overview.topChains} layout="vertical" margin={{ top: 4, right: 16, bottom: 4, left: 4 }}>
                         <CartesianGrid stroke={GRID_STROKE} strokeDasharray="3 3" horizontal={false} />
                         <XAxis type="number" tick={AXIS_TICK} stroke={AXIS_STROKE} allowDecimals={false} />
-                        <YAxis dataKey="chain" type="category" tick={<ChainAxisTick />} stroke={AXIS_STROKE} width={48} />
+                        <YAxis dataKey="chain" type="category" tick={<ChainAxisTick />} stroke={AXIS_STROKE} width={110} />
                         <Tooltip contentStyle={TOOLTIP_STYLE} />
                         <Bar dataKey="swaps" fill="#e59636" radius={[0, 4, 4, 0]} />
                       </BarChart>
@@ -651,7 +682,7 @@ export function AdminView({ onBack }: Props) {
                       <BarChart data={overview.topTokens} layout="vertical" margin={{ top: 4, right: 16, bottom: 4, left: 4 }}>
                         <CartesianGrid stroke={GRID_STROKE} strokeDasharray="3 3" horizontal={false} />
                         <XAxis type="number" tick={AXIS_TICK} stroke={AXIS_STROKE} allowDecimals={false} />
-                        <YAxis dataKey="token" type="category" tick={<TokenAxisTick />} stroke={AXIS_STROKE} width={48} />
+                        <YAxis dataKey="token" type="category" tick={<TokenAxisTick />} stroke={AXIS_STROKE} width={90} />
                         <Tooltip contentStyle={TOOLTIP_STYLE} />
                         <Bar dataKey="swaps" fill="#c97d1e" radius={[0, 4, 4, 0]} />
                       </BarChart>
@@ -761,15 +792,15 @@ export function AdminView({ onBack }: Props) {
                       <tr key={e.id}>
                         <td>{new Date(e.createdAt).toLocaleString()}</td>
                         <td>{e.type}</td>
-                        <td>{e.provider ? <ProviderBadge provider={e.provider} size={18} /> : '—'}</td>
+                        <td>{e.provider ? <ProviderBadge provider={e.provider} size={18} withLabel /> : '—'}</td>
                         <td>{e.success == null ? '—' : e.success ? '✓' : '✕'}</td>
                         <td>{e.durationMs != null ? `${e.durationMs}ms` : '—'}</td>
                         <td>
                           {e.fromChainId != null && e.toChainId != null ? (
                             <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
-                              <ChainBadge chainId={e.fromChainId} size={16} />
+                              <ChainBadge chainId={e.fromChainId} size={16} withLabel />
                               <span style={{ color: 'var(--hf-text-muted)' }}>→</span>
-                              <ChainBadge chainId={e.toChainId} size={16} />
+                              <ChainBadge chainId={e.toChainId} size={16} withLabel />
                             </span>
                           ) : (
                             '—'
