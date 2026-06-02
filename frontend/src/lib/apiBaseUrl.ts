@@ -17,3 +17,10 @@ export function resolveApiBaseUrl(): string {
   }
   return PRODUCTION_API_BASE_URL;
 }
+
+/**
+ * Source-channel attribution header. Tags every call to the bridgekitty-backend
+ * as coming from the web frontend so the analytics dashboards can break
+ * interactions down by channel (frontend vs npm vs virtuals).
+ */
+export const BK_SOURCE_HEADER = { 'x-bk-source': 'frontend' } as const;

@@ -1,6 +1,6 @@
 import type { ChainKey } from '../lib/chains';
 import { getChainByKey } from '../lib/catalogStore';
-import { resolveApiBaseUrl } from '../lib/apiBaseUrl';
+import { resolveApiBaseUrl, BK_SOURCE_HEADER } from '../lib/apiBaseUrl';
 
 export type TxStage = 'submitted' | 'confirming' | 'bridging' | 'completed' | 'failed' | 'pending';
 
@@ -57,7 +57,7 @@ export async function fetchTransactionStatus(
   if (toChainId) params.set('toChain', String(toChainId));
 
   const url = `${base}/status/${encodeURIComponent(trackingId)}?${params.toString()}`;
-  const response = await fetch(url);
+  const response = await fetch(url, { headers: { ...BK_SOURCE_HEADER } });
   if (!response.ok) {
     const text = await response.text();
     throw new Error(text || `Status check failed (${response.status}).`);
