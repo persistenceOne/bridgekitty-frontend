@@ -16,6 +16,7 @@ import {
   Legend,
 } from 'recharts';
 import { API_BASE_URL } from '../constants';
+import { BK_SOURCE_HEADER } from '../lib/apiBaseUrl';
 import { ChainBadge, TokenBadge, ProviderBadge } from './AssetBadge';
 import { getChainByKey, getToken, getChains as _getChains } from '../lib/catalogStore';
 
@@ -77,6 +78,7 @@ interface DauPoint { date: string; wallets: number }
 interface NewWalletPoint { date: string; count: number }
 interface RevenuePoint { date: string; integratorFeeUsd: number; totalFeeUsd: number }
 interface StatusRow { status: string; count: number }
+interface SourceRow { source: string; swaps: number; volume: number; users: number }
 
 /**
  * Shape we render against, *after* normalization in loadAll. The runtime
@@ -103,6 +105,7 @@ interface OverviewData {
   newWalletsSeries: NewWalletPoint[];
   revenueSeries: RevenuePoint[];
   statusFunnel: StatusRow[];
+  sourceBreakdown: SourceRow[];
 }
 
 /** Raw shape as the wire actually returns — every array optional so we
@@ -133,6 +136,7 @@ function normalizeOverview(o: OverviewResponse): OverviewData {
     newWalletsSeries: o.newWalletsSeries ?? [],
     revenueSeries: o.revenueSeries ?? [],
     statusFunnel: o.statusFunnel ?? [],
+    sourceBreakdown: o.sourceBreakdown ?? [],
   };
 }
 
@@ -209,6 +213,25 @@ function orderStatusFunnel(rows: StatusRow[]): StatusRow[] {
   }
   for (const remaining of byStatus.values()) ordered.push(remaining);
   return ordered;
+}
+
+/** Canonical channel order + display labels for the source breakdown. */
+const SOURCE_ORDER = ['frontend', 'npm', 'virtuals', 'unknown'];
+const SOURCE_LABELS: Record<string, string> = {
+  frontend: 'Frontend',
+  npm: 'npm package',
+  virtuals: 'Virtuals (ACP)',
+  unknown: 'Unknown',
+};
+
+function orderSourceBreakdown(rows: SourceRow[]): (SourceRow & { label: string })[] {
+  const rank = (s: string) => {
+    const i = SOURCE_ORDER.indexOf(s);
+    return i === -1 ? SOURCE_ORDER.length : i;
+  };
+  return [...rows]
+    .sort((a, b) => rank(a.source) - rank(b.source))
+    .map((r) => ({ ...r, label: SOURCE_LABELS[r.source] ?? r.source }));
 }
 
 interface SankeyData {
@@ -398,7 +421,7 @@ export function AdminView({ onBack }: Props) {
   const authedFetch = useCallback(
     (path: string) =>
       fetch(`${API_BASE_URL}/admin/stats${path}`, {
-        headers: { 'x-admin-token': token },
+        headers: { 'x-admin-token': token, ...BK_SOURCE_HEADER },
       }),
     [token]
   );
@@ -692,6 +715,29 @@ export function AdminView({ onBack }: Props) {
                     <YAxis dataKey="status" type="category" tick={AXIS_TICK} stroke={AXIS_STROKE} width={90} />
                     <Tooltip contentStyle={TOOLTIP_STYLE} />
                     <Bar dataKey="count" fill="#e59636" radius={[0, 4, 4, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          )}
+
+          {overview.sourceBreakdown.length > 0 && (
+            <div className="hf-admin-panel">
+              <p className="hf-admin-panel-title">Swaps by channel</p>
+              <div style={{ width: '100%', height: Math.max(140, orderSourceBreakdown(overview.sourceBreakdown).length * 36 + 40) }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={orderSourceBreakdown(overview.sourceBreakdown)} layout="vertical" margin={{ top: 4, right: 24, bottom: 4, left: 4 }}>
+                    <CartesianGrid stroke={GRID_STROKE} strokeDasharray="3 3" horizontal={false} />
+                    <XAxis type="number" tick={AXIS_TICK} stroke={AXIS_STROKE} allowDecimals={false} />
+                    <YAxis dataKey="label" type="category" tick={AXIS_TICK} stroke={AXIS_STROKE} width={90} />
+                    <Tooltip
+                      contentStyle={TOOLTIP_STYLE}
+                      formatter={(value, _name, item) => {
+                        const row = item?.payload as (SourceRow & { label: string }) | undefined;
+                        return [`${value} swaps · ${formatUsd(row?.volume ?? 0)} · ${row?.users ?? 0} wallets`, 'Swaps'];
+                      }}
+                    />
+                    <Bar dataKey="swaps" fill="#e59636" radius={[0, 4, 4, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>

@@ -7,6 +7,7 @@ import { ensureTokenApproval, isNativeToken } from '../lib/erc20';
 import { toHexQuantity, validateTransactionRequest } from '../lib/swap';
 import { appendBuilderCodeForChain } from '../lib/builderCode';
 import { API_BASE_URL } from '../constants';
+import { BK_SOURCE_HEADER } from '../lib/apiBaseUrl';
 import type { ChainKey } from '../lib/chains';
 import type { SwapDraft, TxStatus } from '../types';
 
@@ -72,7 +73,7 @@ export function useSwapExecution(
     try {
       await fetch(`${API_BASE_URL}/wallets`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...BK_SOURCE_HEADER },
         body: JSON.stringify({ address }),
       });
     } catch {
@@ -101,7 +102,7 @@ export function useSwapExecution(
     try {
       await fetch(`${API_BASE_URL}/swaps`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...BK_SOURCE_HEADER },
         body: JSON.stringify({
           userAddress: address,
           quoteId,

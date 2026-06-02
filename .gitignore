@@ -3,6 +3,9 @@ backend/node_modules
 frontend/dist
 backend/dist
 **/.env
+**/.env.local
+**/.env.*.local
+.vercel/
 .DS_Store
 .vite
 *.tsbuildinfo

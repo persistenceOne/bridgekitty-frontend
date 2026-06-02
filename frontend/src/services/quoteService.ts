@@ -1,7 +1,7 @@
 import type { ChainKey } from '../lib/chains';
 import { getChainByKey, getTokensFor } from '../lib/catalogStore';
 import { formatUnits, parseUnits } from '../lib/amount';
-import { resolveApiBaseUrl } from '../lib/apiBaseUrl';
+import { resolveApiBaseUrl, BK_SOURCE_HEADER } from '../lib/apiBaseUrl';
 import { matchToken } from '../lib/swap';
 
 const NULL_ADDRESS = '0x0000000000000000000000000000000000000000';
@@ -103,7 +103,7 @@ async function postJson<T>(
   try {
     response = await fetch(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...BK_SOURCE_HEADER },
       body: JSON.stringify(payload),
       signal,
     });
