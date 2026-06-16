@@ -620,7 +620,8 @@ export function AdminView({ onBack }: Props) {
                       tick={AXIS_TICK}
                       tickFormatter={(d: string) => d.slice(5)}
                       stroke={AXIS_STROKE}
-                      interval={0}
+                      interval="preserveStartEnd"
+                      minTickGap={24}
                     />
                     <YAxis yAxisId="left" tick={AXIS_TICK} stroke={AXIS_STROKE} allowDecimals={false} />
                     <YAxis yAxisId="right" orientation="right" tick={AXIS_TICK} stroke={AXIS_STROKE} />
@@ -668,7 +669,7 @@ export function AdminView({ onBack }: Props) {
                     <ResponsiveContainer width="100%" height="100%">
                       <LineChart data={overview.dauSeries} margin={{ top: 6, right: 16, bottom: 0, left: -8 }}>
                         <CartesianGrid stroke={GRID_STROKE} strokeDasharray="3 3" vertical={false} />
-                        <XAxis dataKey="date" tick={AXIS_TICK} tickFormatter={(d: string) => d.slice(5)} stroke={AXIS_STROKE} interval={0} />
+                        <XAxis dataKey="date" tick={AXIS_TICK} tickFormatter={(d: string) => d.slice(5)} stroke={AXIS_STROKE} interval="preserveStartEnd" minTickGap={24} />
                         <YAxis tick={AXIS_TICK} stroke={AXIS_STROKE} allowDecimals={false} />
                         <Tooltip contentStyle={TOOLTIP_STYLE} />
                         <Line type="monotone" dataKey="wallets" stroke="#e59636" strokeWidth={2} dot={{ r: 3 }} />
@@ -684,7 +685,7 @@ export function AdminView({ onBack }: Props) {
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart data={overview.newWalletsSeries} margin={{ top: 6, right: 16, bottom: 0, left: -8 }}>
                         <CartesianGrid stroke={GRID_STROKE} strokeDasharray="3 3" vertical={false} />
-                        <XAxis dataKey="date" tick={AXIS_TICK} tickFormatter={(d: string) => d.slice(5)} stroke={AXIS_STROKE} interval={0} />
+                        <XAxis dataKey="date" tick={AXIS_TICK} tickFormatter={(d: string) => d.slice(5)} stroke={AXIS_STROKE} interval="preserveStartEnd" minTickGap={24} />
                         <YAxis tick={AXIS_TICK} stroke={AXIS_STROKE} allowDecimals={false} />
                         <Tooltip contentStyle={TOOLTIP_STYLE} />
                         <Bar dataKey="count" fill="#c97d1e" radius={[3, 3, 0, 0]} />
@@ -709,7 +710,7 @@ export function AdminView({ onBack }: Props) {
                       </linearGradient>
                     </defs>
                     <CartesianGrid stroke={GRID_STROKE} strokeDasharray="3 3" vertical={false} />
-                    <XAxis dataKey="date" tick={AXIS_TICK} tickFormatter={(d: string) => d.slice(5)} stroke={AXIS_STROKE} interval={0} />
+                    <XAxis dataKey="date" tick={AXIS_TICK} tickFormatter={(d: string) => d.slice(5)} stroke={AXIS_STROKE} interval="preserveStartEnd" minTickGap={24} />
                     <YAxis yAxisId="left" tick={AXIS_TICK} stroke={AXIS_STROKE} tickFormatter={(v: number) => `$${v.toFixed(2)}`} />
                     <YAxis yAxisId="right" orientation="right" tick={AXIS_TICK} stroke={AXIS_STROKE} tickFormatter={(v: number) => `$${v.toFixed(2)}`} />
                     <Tooltip contentStyle={TOOLTIP_STYLE} />
@@ -783,7 +784,7 @@ export function AdminView({ onBack }: Props) {
                       <ResponsiveContainer width="100%" height="100%">
                         <AreaChart data={assetDaily} margin={{ top: 6, right: 16, bottom: 0, left: -8 }}>
                           <CartesianGrid stroke={GRID_STROKE} strokeDasharray="3 3" vertical={false} />
-                          <XAxis dataKey="date" tick={AXIS_TICK} tickFormatter={(d: string) => d.slice(5)} stroke={AXIS_STROKE} interval={0} />
+                          <XAxis dataKey="date" tick={AXIS_TICK} tickFormatter={(d: string) => d.slice(5)} stroke={AXIS_STROKE} interval="preserveStartEnd" minTickGap={24} />
                           <YAxis tick={AXIS_TICK} stroke={AXIS_STROKE} tickFormatter={(v: number) => `$${v.toFixed(2)}`} />
                           <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(value, name) => [formatUsd(Number(value)), name]} />
                           <Legend wrapperStyle={{ fontSize: 11, paddingTop: 4 }} />

@@ -20,7 +20,7 @@ import { API_BASE_URL } from '../constants';
 import { ChainBadge } from './AssetBadge';
 import { assetColor, toAssetSlices, flattenAssetSeries } from '../lib/assetSeries';
 
-type Period = '7d' | '15d' | '30d';
+type Period = '7d' | '15d' | '30d' | 'all';
 
 interface DailyPoint {
   date: string;
@@ -63,6 +63,14 @@ const PERIOD_LABELS: Record<Period, string> = {
   '7d': 'Last 7 days',
   '15d': 'Last 15 days',
   '30d': 'Last 30 days',
+  'all': 'All time',
+};
+
+const PERIOD_BUTTON_LABELS: Record<Period, string> = {
+  '7d': '7D',
+  '15d': '15D',
+  '30d': '30D',
+  'all': 'All',
 };
 
 interface Props {
@@ -108,13 +116,13 @@ export function StatsView({ onBack }: Props) {
           <p className="hf-stats-range">{PERIOD_LABELS[period]}</p>
         </div>
         <div className="hf-stats-periods">
-          {(['7d', '15d', '30d'] as Period[]).map((p) => (
+          {(['7d', '15d', '30d', 'all'] as Period[]).map((p) => (
             <button
               key={p}
               className={`hf-stats-period-btn ${period === p ? 'active' : ''}`}
               onClick={() => setPeriod(p)}
             >
-              {p === '7d' ? '7D' : p === '15d' ? '15D' : '30D'}
+              {PERIOD_BUTTON_LABELS[p]}
             </button>
           ))}
         </div>
@@ -149,7 +157,8 @@ export function StatsView({ onBack }: Props) {
                       tick={{ fontSize: 10, fill: 'rgba(29, 19, 6, 0.55)' }}
                       tickFormatter={(d: string) => d.slice(5)}
                       stroke="rgba(229, 150, 54, 0.25)"
-                      interval={0}
+                      interval="preserveStartEnd"
+                      minTickGap={24}
                     />
                     <YAxis
                       tick={{ fontSize: 10, fill: 'rgba(29, 19, 6, 0.55)' }}
@@ -201,7 +210,8 @@ export function StatsView({ onBack }: Props) {
                       tick={{ fontSize: 10, fill: 'rgba(29, 19, 6, 0.55)' }}
                       tickFormatter={(d: string) => d.slice(5)}
                       stroke="rgba(229, 150, 54, 0.25)"
-                      interval={0}
+                      interval="preserveStartEnd"
+                      minTickGap={24}
                     />
                     <YAxis
                       yAxisId="left"
@@ -311,7 +321,8 @@ export function StatsView({ onBack }: Props) {
                       tick={{ fontSize: 10, fill: 'rgba(29, 19, 6, 0.55)' }}
                       tickFormatter={(d: string) => d.slice(5)}
                       stroke="rgba(229, 150, 54, 0.25)"
-                      interval={0}
+                      interval="preserveStartEnd"
+                      minTickGap={24}
                     />
                     <YAxis
                       tick={{ fontSize: 10, fill: 'rgba(29, 19, 6, 0.55)' }}
