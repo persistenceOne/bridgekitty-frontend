@@ -64,6 +64,23 @@
   --hf-radius-sm: 12px;
   --hf-radius-xs: 8px;
   --hf-transition: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* Liquid Glass — translucent frosted surfaces for chrome + overlays.
+     Light: warm-white glass over the cream/topographic background. */
+  --hf-glass-bg: rgba(255, 251, 245, 0.62);
+  --hf-glass-bg-strong: rgba(255, 251, 245, 0.78);
+  --hf-glass-border: rgba(255, 255, 255, 0.65);
+  --hf-glass-highlight: rgba(255, 255, 255, 0.9);
+  --hf-glass-tint: rgba(229, 150, 54, 0.06);
+  --hf-glass-blur: 18px;
+  --hf-glass-saturate: 180%;
+  --hf-glass-shadow:
+    0 8px 32px rgba(29, 19, 6, 0.12),
+    0 2px 8px rgba(29, 19, 6, 0.06);
+  /* Inset top specular highlight + soft inner glow = the "lit edge" look */
+  --hf-glass-inset:
+    inset 0 1px 0 0 var(--hf-glass-highlight),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.04);
 }
 
 /* ─── Dark Theme ─────────────────────────────────────────────
@@ -120,6 +137,22 @@
   --hf-shadow-card:
     0 1px 3px rgba(0, 0, 0, 0.4), 0 4px 18px rgba(0, 0, 0, 0.45);
   --hf-shadow-elevated: 0 8px 36px rgba(0, 0, 0, 0.55);
+
+  /* Liquid Glass — dark: translucent espresso glass with a warm amber-lit
+     top edge, floating over the dark body + radial amber glow. */
+  --hf-glass-bg: rgba(36, 26, 16, 0.55);
+  --hf-glass-bg-strong: rgba(36, 26, 16, 0.72);
+  --hf-glass-border: rgba(255, 216, 168, 0.16);
+  --hf-glass-highlight: rgba(255, 220, 170, 0.22);
+  --hf-glass-tint: rgba(229, 150, 54, 0.10);
+  --hf-glass-blur: 20px;
+  --hf-glass-saturate: 160%;
+  --hf-glass-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.5),
+    0 2px 10px rgba(0, 0, 0, 0.4);
+  --hf-glass-inset:
+    inset 0 1px 0 0 var(--hf-glass-highlight),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.03);
 }
 
 /* Smooth the flip between themes for surfaces, text and borders. */
@@ -162,6 +195,72 @@
       transparent 60%
     );
   background-attachment: fixed;
+}
+
+/* ─── Liquid Glass ────────────────────────────────────────────
+   Reusable frosted-glass surface for chrome + overlays. The
+   translucent fill + backdrop blur/saturate let the background bleed
+   through; a 1px specular top edge (::before) plus a soft amber tint
+   sheen give the lit, "liquid" look. Applied to header, footer,
+   modals, dropdowns and popovers — NOT to the swap form fields or
+   chart canvases (those stay solid for readability). */
+.hf-glass {
+  position: relative;
+  background-color: var(--hf-glass-bg);
+  background-image: linear-gradient(
+    180deg,
+    var(--hf-glass-tint) 0%,
+    transparent 40%
+  );
+  -webkit-backdrop-filter: blur(var(--hf-glass-blur)) saturate(var(--hf-glass-saturate));
+  backdrop-filter: blur(var(--hf-glass-blur)) saturate(var(--hf-glass-saturate));
+  border: 1px solid var(--hf-glass-border);
+  box-shadow: var(--hf-glass-shadow), var(--hf-glass-inset);
+}
+
+/* Specular highlight running along the top edge — the signature
+   Liquid Glass "rim light". */
+.hf-glass::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    180deg,
+    var(--hf-glass-highlight) 0%,
+    transparent 18%
+  );
+  opacity: 0.7;
+  mix-blend-mode: screen;
+}
+
+.hf-glass-strong {
+  background-color: var(--hf-glass-bg-strong);
+}
+
+/* Fallback: if backdrop-filter is unsupported, fall back to the solid
+   card token so surfaces never turn unreadably transparent. */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .hf-glass {
+    background-color: var(--hf-bg-card);
+    background-image: none;
+  }
+}
+
+/* Accessibility: users who ask for reduced transparency get solid
+   surfaces and no blur. */
+@media (prefers-reduced-transparency: reduce) {
+  .hf-glass {
+    background-color: var(--hf-bg-card);
+    background-image: none;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+  .hf-glass::before {
+    display: none;
+  }
 }
 
 /* ─── Reset / Global ─────────────────────────────────── */
@@ -241,8 +340,22 @@ button {
   padding: 0.75rem max(1.5rem, env(safe-area-inset-left)) 0.75rem
     max(1.5rem, env(safe-area-inset-right));
   padding-top: max(0.75rem, env(safe-area-inset-top));
-  background: var(--hf-bg-card);
-  border-bottom: 1px solid var(--hf-border);
+  /* Liquid Glass chrome */
+  background-color: var(--hf-glass-bg);
+  background-image: linear-gradient(180deg, var(--hf-glass-tint) 0%, transparent 60%);
+  -webkit-backdrop-filter: blur(var(--hf-glass-blur)) saturate(var(--hf-glass-saturate));
+  backdrop-filter: blur(var(--hf-glass-blur)) saturate(var(--hf-glass-saturate));
+  border-bottom: 1px solid var(--hf-glass-border);
+  box-shadow:
+    0 4px 24px rgba(29, 19, 6, 0.06),
+    inset 0 1px 0 0 var(--hf-glass-highlight);
+}
+
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .hf-header {
+    background-color: var(--hf-bg-card);
+    background-image: none;
+  }
 }
 
 /* Header right-side cluster: theme toggle + wallet connector. */
@@ -261,8 +374,11 @@ button {
   height: 38px;
   flex-shrink: 0;
   border-radius: var(--hf-radius-sm);
-  border: 1px solid var(--hf-border);
-  background: var(--hf-bg-input);
+  border: 1px solid var(--hf-glass-border);
+  background-color: var(--hf-glass-bg);
+  -webkit-backdrop-filter: blur(10px) saturate(var(--hf-glass-saturate));
+  backdrop-filter: blur(10px) saturate(var(--hf-glass-saturate));
+  box-shadow: inset 0 1px 0 0 var(--hf-glass-highlight);
   color: var(--hf-text-secondary);
   cursor: pointer;
   transition:
@@ -2175,13 +2291,24 @@ button {
 .hf-dropdown-panel {
   width: min(380px, 100%);
   max-height: 70vh;
-  background: var(--hf-bg-card);
-  border: 1px solid var(--hf-border);
+  /* Liquid Glass overlay */
+  background-color: var(--hf-glass-bg-strong);
+  background-image: linear-gradient(180deg, var(--hf-glass-tint) 0%, transparent 45%);
+  -webkit-backdrop-filter: blur(var(--hf-glass-blur)) saturate(var(--hf-glass-saturate));
+  backdrop-filter: blur(var(--hf-glass-blur)) saturate(var(--hf-glass-saturate));
+  border: 1px solid var(--hf-glass-border);
   border-radius: var(--hf-radius);
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  box-shadow: var(--hf-shadow-elevated);
+  box-shadow: var(--hf-glass-shadow), inset 0 1px 0 0 var(--hf-glass-highlight);
+}
+
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .hf-dropdown-panel {
+    background-color: var(--hf-bg-card);
+    background-image: none;
+  }
 }
 
 .hf-dropdown-header {
@@ -3137,8 +3264,20 @@ button {
   flex-direction: row;
   align-items: center;
   justify-content: space-between;
-  background: var(--hf-bg-card);
-  border-top: 1px solid var(--hf-border);
+  /* Liquid Glass chrome */
+  background-color: var(--hf-glass-bg);
+  background-image: linear-gradient(0deg, var(--hf-glass-tint) 0%, transparent 60%);
+  -webkit-backdrop-filter: blur(var(--hf-glass-blur)) saturate(var(--hf-glass-saturate));
+  backdrop-filter: blur(var(--hf-glass-blur)) saturate(var(--hf-glass-saturate));
+  border-top: 1px solid var(--hf-glass-border);
+  box-shadow: inset 0 1px 0 0 var(--hf-glass-highlight);
+}
+
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .hf-footer {
+    background-color: var(--hf-bg-card);
+    background-image: none;
+  }
 }
 
 .hf-footer div {
@@ -3193,11 +3332,22 @@ button {
   width: min(560px, 100%);
   max-height: 85vh;
   overflow-y: auto;
-  background: var(--hf-bg-card);
-  border: 1px solid var(--hf-border);
+  /* Liquid Glass overlay */
+  background-color: var(--hf-glass-bg-strong);
+  background-image: linear-gradient(180deg, var(--hf-glass-tint) 0%, transparent 45%);
+  -webkit-backdrop-filter: blur(var(--hf-glass-blur)) saturate(var(--hf-glass-saturate));
+  backdrop-filter: blur(var(--hf-glass-blur)) saturate(var(--hf-glass-saturate));
+  border: 1px solid var(--hf-glass-border);
   border-radius: var(--hf-radius);
-  box-shadow: var(--hf-shadow-elevated);
+  box-shadow: var(--hf-glass-shadow), inset 0 1px 0 0 var(--hf-glass-highlight);
   padding: 2rem 1.75rem;
+}
+
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .hf-privacy-card {
+    background-color: var(--hf-bg-card);
+    background-image: none;
+  }
 }
 
 .hf-privacy-title {
