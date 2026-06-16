@@ -6,6 +6,11 @@ import {
   Line,
   AreaChart,
   Area,
+  ComposedChart,
+  PieChart,
+  Pie,
+  Cell,
+  Legend,
   XAxis,
   YAxis,
   Tooltip,
@@ -13,18 +18,22 @@ import {
 } from 'recharts';
 import { API_BASE_URL } from '../constants';
 import { ChainBadge } from './AssetBadge';
+import { assetColor, toAssetSlices, flattenAssetSeries } from '../lib/assetSeries';
 
 type Period = '7d' | '15d' | '30d';
 
 interface DailyPoint {
   date: string;
   swaps: number;
+  volume?: number;
+  assets?: Record<string, number>;
 }
 
 interface CumulativePoint {
   date: string;
   swaps: number;
   wallets: number;
+  volume?: number;
 }
 
 interface CorridorRow {
@@ -41,6 +50,7 @@ interface StatsData {
   dailySeries?: DailyPoint[];
   cumulativeSeries?: CumulativePoint[];
   topCorridors?: CorridorRow[];
+  assetBreakdown?: Record<string, number>;
 }
 
 function formatUsd(n: number): string {
@@ -77,6 +87,8 @@ export function StatsView({ onBack }: Props) {
   const series = data?.dailySeries ?? [];
   const cumulative = data?.cumulativeSeries ?? [];
   const corridors = data?.topCorridors ?? [];
+  const assetSlices = toAssetSlices(data?.assetBreakdown);
+  const { rows: assetDaily, assets: assetKeys } = flattenAssetSeries(series, data?.assetBreakdown);
 
   return (
     <motion.main
@@ -172,7 +184,7 @@ export function StatsView({ onBack }: Props) {
               <p className="hf-stats-section-title">Cumulative growth</p>
               <div style={{ width: '100%', height: 220 }}>
                 <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={cumulative} margin={{ top: 6, right: 8, bottom: 0, left: -16 }}>
+                  <ComposedChart data={cumulative} margin={{ top: 6, right: 8, bottom: 0, left: -16 }}>
                     <defs>
                       <linearGradient id="growthSwaps" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="5%" stopColor="#e59636" stopOpacity={0.4} />
@@ -192,9 +204,17 @@ export function StatsView({ onBack }: Props) {
                       interval={0}
                     />
                     <YAxis
+                      yAxisId="left"
                       tick={{ fontSize: 10, fill: 'rgba(29, 19, 6, 0.55)' }}
                       stroke="rgba(229, 150, 54, 0.25)"
                       allowDecimals={false}
+                    />
+                    <YAxis
+                      yAxisId="right"
+                      orientation="right"
+                      tick={{ fontSize: 10, fill: 'rgba(29, 19, 6, 0.55)' }}
+                      stroke="rgba(229, 150, 54, 0.25)"
+                      tickFormatter={(v: number) => formatUsd(v)}
                     />
                     <Tooltip
                       contentStyle={{
@@ -204,8 +224,13 @@ export function StatsView({ onBack }: Props) {
                         fontSize: 12,
                       }}
                       labelStyle={{ fontWeight: 600 }}
+                      formatter={(value, name) =>
+                        name === 'Total volume' ? [formatUsd(Number(value)), name] : [value, name]
+                      }
                     />
+                    <Legend wrapperStyle={{ fontSize: 11, paddingTop: 4 }} />
                     <Area
+                      yAxisId="left"
                       type="monotone"
                       dataKey="swaps"
                       stroke="#e59636"
@@ -214,6 +239,7 @@ export function StatsView({ onBack }: Props) {
                       name="Total swaps"
                     />
                     <Area
+                      yAxisId="left"
                       type="monotone"
                       dataKey="wallets"
                       stroke="#c97d1e"
@@ -221,6 +247,99 @@ export function StatsView({ onBack }: Props) {
                       fill="url(#growthWallets)"
                       name="Total users"
                     />
+                    <Line
+                      yAxisId="right"
+                      type="monotone"
+                      dataKey="volume"
+                      stroke="#8a5a12"
+                      strokeWidth={2}
+                      strokeDasharray="4 4"
+                      dot={false}
+                      name="Total volume"
+                    />
+                  </ComposedChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          )}
+
+          {assetSlices.length > 0 && (
+            <div className="hf-stats-section" style={{ marginTop: '1.25rem' }}>
+              <p className="hf-stats-section-title">Volume by asset</p>
+              <div style={{ width: '100%', height: 240 }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={assetSlices}
+                      dataKey="value"
+                      nameKey="name"
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={55}
+                      outerRadius={90}
+                      paddingAngle={2}
+                    >
+                      {assetSlices.map((_, i) => (
+                        <Cell key={i} fill={assetColor(i)} />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      contentStyle={{
+                        background: '#fff',
+                        border: '1px solid rgba(229, 150, 54, 0.3)',
+                        borderRadius: 8,
+                        fontSize: 12,
+                      }}
+                      formatter={(value, name) => [formatUsd(Number(value)), name]}
+                    />
+                    <Legend wrapperStyle={{ fontSize: 11 }} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          )}
+
+          {assetKeys.length > 0 && assetDaily.length > 0 && (
+            <div className="hf-stats-section" style={{ marginTop: '1.25rem' }}>
+              <p className="hf-stats-section-title">Volume by asset (daily)</p>
+              <div style={{ width: '100%', height: 240 }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={assetDaily} margin={{ top: 6, right: 8, bottom: 0, left: -16 }}>
+                    <CartesianGrid stroke="rgba(229, 150, 54, 0.12)" strokeDasharray="3 3" vertical={false} />
+                    <XAxis
+                      dataKey="date"
+                      tick={{ fontSize: 10, fill: 'rgba(29, 19, 6, 0.55)' }}
+                      tickFormatter={(d: string) => d.slice(5)}
+                      stroke="rgba(229, 150, 54, 0.25)"
+                      interval={0}
+                    />
+                    <YAxis
+                      tick={{ fontSize: 10, fill: 'rgba(29, 19, 6, 0.55)' }}
+                      stroke="rgba(229, 150, 54, 0.25)"
+                      tickFormatter={(v: number) => formatUsd(v)}
+                    />
+                    <Tooltip
+                      contentStyle={{
+                        background: '#fff',
+                        border: '1px solid rgba(229, 150, 54, 0.3)',
+                        borderRadius: 8,
+                        fontSize: 12,
+                      }}
+                      formatter={(value, name) => [formatUsd(Number(value)), name]}
+                    />
+                    <Legend wrapperStyle={{ fontSize: 11, paddingTop: 4 }} />
+                    {assetKeys.map((sym, i) => (
+                      <Area
+                        key={sym}
+                        type="monotone"
+                        dataKey={sym}
+                        stackId="assets"
+                        stroke={assetColor(i)}
+                        fill={assetColor(i)}
+                        fillOpacity={0.55}
+                        name={sym}
+                      />
+                    ))}
                   </AreaChart>
                 </ResponsiveContainer>
               </div>
