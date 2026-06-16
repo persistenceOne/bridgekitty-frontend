@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { PrivyProvider } from '@privy-io/react-auth';
+import { useTheme } from '../hooks/useTheme';
 import {
   mainnet,
   base,
@@ -37,6 +38,8 @@ const SUPPORTED_CHAINS = [
 const PRIVY_APP_ID = import.meta.env.VITE_PRIVY_APP_ID;
 
 export function AppProviders({ children }: { children: ReactNode }) {
+  const { theme } = useTheme();
+
   if (!PRIVY_APP_ID) {
     return <>{children}</>;
   }
@@ -47,7 +50,7 @@ export function AppProviders({ children }: { children: ReactNode }) {
       config={{
         loginMethods: ['wallet'],
         appearance: {
-          theme: 'light',
+          theme: theme === 'dark' ? 'dark' : 'light',
           accentColor: '#ffafd3'
         },
         defaultChain: mainnet,

@@ -13,6 +13,7 @@ import { SwapView } from './components/SwapView';
 import { StatsView } from './components/StatsView';
 import { AdminView } from './components/AdminView';
 import { TransactionHistoryModal } from './components/TransactionHistoryModal';
+import { ThemeToggle } from './components/ThemeToggle';
 import { loadCatalog, useCatalogReady, useChainByKey, useTokensFor } from './lib/catalogStore';
 import { usePrices } from './hooks/usePrices';
 import { useTokenBalances } from './hooks/useTokenBalances';
@@ -197,9 +198,15 @@ function App() {
           </div>
         </div>
         {HAS_PRIVY ? (
-          <PrivyWalletConnector onWalletAddress={setWalletAddress} onWalletBridge={setWalletBridge} />
+          <div className="hf-header-actions">
+            <ThemeToggle />
+            <PrivyWalletConnector onWalletAddress={setWalletAddress} onWalletBridge={setWalletBridge} />
+          </div>
         ) : (
-          <DemoWalletConnector />
+          <div className="hf-header-actions">
+            <ThemeToggle />
+            <DemoWalletConnector />
+          </div>
         )}
       </header>
 
