@@ -3118,7 +3118,7 @@ button {
   flex-direction: row;
   align-items: center;
   justify-content: space-between;
-  background: #ffffff;
+  background: var(--hf-bg-card);
   border-top: 1px solid var(--hf-border);
 }
 
