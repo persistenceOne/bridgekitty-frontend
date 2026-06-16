@@ -123,13 +123,32 @@
 }
 
 /* Smooth the flip between themes for surfaces, text and borders. */
-body,
-.hf-header,
-[class*="hf-"] {
+/* ─── Smooth theme switching ──────────────────────────────────
+   During a light↔dark switch we add `.theme-transition` to <html> for a
+   short window. The !important crossfade is applied uniformly to every
+   element so nothing snaps (component-level transitions would otherwise
+   override a permanent rule and switch instantly). It's removed right
+   after, so hover/interaction transitions keep their own timing. */
+.theme-transition *,
+.theme-transition *::before,
+.theme-transition *::after {
   transition:
-    background-color var(--hf-transition),
-    border-color var(--hf-transition),
-    color var(--hf-transition);
+    background-color 320ms ease,
+    background-image 320ms ease,
+    border-color 320ms ease,
+    color 320ms ease,
+    fill 320ms ease,
+    stroke 320ms ease,
+    box-shadow 320ms ease !important;
+  transition-delay: 0ms !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .theme-transition *,
+  .theme-transition *::before,
+  .theme-transition *::after {
+    transition: none !important;
+  }
 }
 
 /* The decorative /background.svg is a warm-light pattern. On dark it would

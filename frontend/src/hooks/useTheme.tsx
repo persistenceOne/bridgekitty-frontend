@@ -1,5 +1,5 @@
 import {
-  createContext, useCallback, useContext, useEffect, useMemo, useState,
+  createContext, useCallback, useContext, useEffect, useMemo, useRef, useState,
   type ReactNode,
 } from 'react';
 
@@ -38,12 +38,37 @@ function applyTheme(theme: Theme) {
   root.style.colorScheme = theme;
 }
 
+/**
+ * Briefly enables the global `.theme-transition` crossfade (see index.css),
+ * flips the theme, then removes the class so per-component transitions keep
+ * their own timing. Guarded so overlapping toggles don't strand the class.
+ */
+let transitionTimer: ReturnType<typeof setTimeout> | null = null;
+function enableTransitionWindow() {
+  if (typeof document === 'undefined') return;
+  const root = document.documentElement;
+  root.classList.add('theme-transition');
+  if (transitionTimer) clearTimeout(transitionTimer);
+  transitionTimer = setTimeout(() => {
+    root.classList.remove('theme-transition');
+    transitionTimer = null;
+  }, 340);
+}
+
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setThemeState] = useState<Theme>(resolveInitialTheme);
+  const firstRun = useRef(true);
 
-  // Reflect the active theme onto <html> whenever it changes.
+  // Reflect the active theme onto <html> whenever it changes. The first run
+  // (mount) just applies it; subsequent changes also fire the crossfade so
+  // the light↔dark switch animates smoothly instead of snapping.
   useEffect(() => {
     applyTheme(theme);
+    if (firstRun.current) {
+      firstRun.current = false;
+      return;
+    }
+    enableTransitionWindow();
   }, [theme]);
 
   // Follow OS changes only while the user hasn't pinned an explicit choice.
