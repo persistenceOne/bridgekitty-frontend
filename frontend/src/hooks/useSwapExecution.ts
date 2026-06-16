@@ -22,6 +22,14 @@ export function useSwapExecution(
 
   const statusPollerRef = useRef<{ stop: () => void } | null>(null);
 
+  /** Re-sender for the current swap's /swaps report, captured in recordSwap.
+   *  The backend upserts transaction_history on (userAddress, txHash), so
+   *  re-POSTing the same body with a new status just updates the row — this is
+   *  how a swap advances from "submitted" to a terminal "completed"/"failed".
+   *  Without it every row is frozen at "submitted" and the status funnel is flat. */
+  const swapReportRef = useRef<{ txHash: string; send: (status: string) => Promise<void> } | null>(null);
+  const terminalReportedRef = useRef(false);
+
   useEffect(() => {
     return () => { statusPollerRef.current?.stop(); };
   }, []);
@@ -55,6 +63,17 @@ export function useSwapExecution(
             lifiExplorerLink: result.lifiExplorerLink
           };
         });
+
+        // Report the terminal status back to the backend so transaction_history
+        // advances past "submitted". Fire once, only for the swap we're polling.
+        if (
+          (result.status === 'completed' || result.status === 'failed') &&
+          !terminalReportedRef.current &&
+          swapReportRef.current?.txHash === hash
+        ) {
+          terminalReportedRef.current = true;
+          void swapReportRef.current.send(result.status);
+        }
       },
       toChain
     );
@@ -99,34 +118,46 @@ export function useSwapExecution(
     } | undefined
   ) => {
     const feeFields = fees ?? {};
-    try {
-      await fetch(`${API_BASE_URL}/swaps`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...BK_SOURCE_HEADER },
-        body: JSON.stringify({
-          userAddress: address,
-          quoteId,
-          fromChain: draft.fromChain,
-          toChain: draft.toChain,
-          fromTokenSymbol: draft.fromTokenSymbol,
-          toTokenSymbol: draft.toTokenSymbol,
-          amount: draft.amount,
-          ...(volumeUsd != null && { volumeUsd }),
-          // Fee breakdown — backend persists these into swap_records and
-          // transaction_history columns (added in v0.2.2). Optional fields;
-          // backend treats missing values as null.
-          ...(feeFields.feeUsd != null && { feeUsd: feeFields.feeUsd }),
-          ...(feeFields.integratorFeeUsd != null && { integratorFeeUsd: feeFields.integratorFeeUsd }),
-          ...(feeFields.protocolFeeUsd != null && { protocolFeeUsd: feeFields.protocolFeeUsd }),
-          ...(feeFields.gasCostUsd != null && { gasCostUsd: feeFields.gasCostUsd }),
-          ...(feeFields.fixFeeUsd != null && { fixFeeUsd: feeFields.fixFeeUsd }),
-          status: 'submitted',
-          txHash,
-          provider,
-          metadata: { txHash, provider }
-        })
-      });
-    } catch { /* non-critical */ }
+    // Static part of the report — everything except `status`. The backend
+    // requires the full payload (it validates fromTokenSymbol/amount/etc.), so
+    // both the initial and terminal reports re-send this whole body.
+    const body = {
+      userAddress: address,
+      quoteId,
+      fromChain: draft.fromChain,
+      toChain: draft.toChain,
+      fromTokenSymbol: draft.fromTokenSymbol,
+      toTokenSymbol: draft.toTokenSymbol,
+      amount: draft.amount,
+      ...(volumeUsd != null && { volumeUsd }),
+      // Fee breakdown — backend persists these into swap_records and
+      // transaction_history columns (added in v0.2.2). Optional fields;
+      // backend treats missing values as null.
+      ...(feeFields.feeUsd != null && { feeUsd: feeFields.feeUsd }),
+      ...(feeFields.integratorFeeUsd != null && { integratorFeeUsd: feeFields.integratorFeeUsd }),
+      ...(feeFields.protocolFeeUsd != null && { protocolFeeUsd: feeFields.protocolFeeUsd }),
+      ...(feeFields.gasCostUsd != null && { gasCostUsd: feeFields.gasCostUsd }),
+      ...(feeFields.fixFeeUsd != null && { fixFeeUsd: feeFields.fixFeeUsd }),
+      txHash,
+      provider,
+      metadata: { txHash, provider }
+    };
+
+    const send = async (status: string) => {
+      try {
+        await fetch(`${API_BASE_URL}/swaps`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...BK_SOURCE_HEADER },
+          body: JSON.stringify({ ...body, status })
+        });
+      } catch { /* non-critical */ }
+    };
+
+    // Record at submission time, then let the status poller send the terminal
+    // status when the bridge settles (see startStatusPolling).
+    swapReportRef.current = { txHash, send };
+    terminalReportedRef.current = false;
+    await send('submitted');
   }, []);
 
   const executeSwap = useCallback(async (

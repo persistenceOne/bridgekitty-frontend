@@ -8,6 +8,10 @@ import {
   Bar,
   AreaChart,
   Area,
+  ComposedChart,
+  PieChart,
+  Pie,
+  Cell,
   Sankey,
   XAxis,
   YAxis,
@@ -19,6 +23,7 @@ import { API_BASE_URL } from '../constants';
 import { BK_SOURCE_HEADER } from '../lib/apiBaseUrl';
 import { ChainBadge, TokenBadge, ProviderBadge } from './AssetBadge';
 import { getChainByKey, getToken, getChains as _getChains } from '../lib/catalogStore';
+import { assetColor, toAssetSlices, flattenAssetSeries } from '../lib/assetSeries';
 
 /**
  * Admin-only analytics. Gated by the ADMIN_TOKEN backend secret — the user
@@ -69,16 +74,23 @@ function Pagination({ offset, total, onPrev, onNext }: PaginationProps) {
   );
 }
 
-interface DailyPoint { date: string; swaps: number; volume: number }
+interface DailyPoint { date: string; swaps: number; volume: number; assets?: Record<string, number>; cumulativeVolume?: number }
 interface ChainRow { chain: string; swaps: number; volume: number }
 interface TokenRow { token: string; swaps: number }
 interface ProviderRow { provider: string; swaps: number; volume: number }
 interface FlowRow { from: string; to: string; swaps: number; volume: number }
 interface DauPoint { date: string; wallets: number }
 interface NewWalletPoint { date: string; count: number }
-interface RevenuePoint { date: string; integratorFeeUsd: number; totalFeeUsd: number }
+interface RevenuePoint {
+  date: string;
+  integratorFeeUsd: number;
+  totalFeeUsd: number;
+  cumulativeIntegratorFeeUsd?: number;
+  cumulativeTotalFeeUsd?: number;
+}
 interface StatusRow { status: string; count: number }
 interface SourceRow { source: string; swaps: number; volume: number; users: number }
+interface FeeBreakdownEntry { feeUsd: number; integratorFeeUsd: number }
 
 /**
  * Shape we render against, *after* normalization in loadAll. The runtime
@@ -106,6 +118,8 @@ interface OverviewData {
   revenueSeries: RevenuePoint[];
   statusFunnel: StatusRow[];
   sourceBreakdown: SourceRow[];
+  assetBreakdown: Record<string, number>;
+  feeBreakdown: Record<string, FeeBreakdownEntry>;
 }
 
 /** Raw shape as the wire actually returns — every array optional so we
@@ -137,6 +151,8 @@ function normalizeOverview(o: OverviewResponse): OverviewData {
     revenueSeries: o.revenueSeries ?? [],
     statusFunnel: o.statusFunnel ?? [],
     sourceBreakdown: o.sourceBreakdown ?? [],
+    assetBreakdown: o.assetBreakdown ?? {},
+    feeBreakdown: o.feeBreakdown ?? {},
   };
 }
 
@@ -604,7 +620,8 @@ export function AdminView({ onBack }: Props) {
                       tick={AXIS_TICK}
                       tickFormatter={(d: string) => d.slice(5)}
                       stroke={AXIS_STROKE}
-                      interval={0}
+                      interval="preserveStartEnd"
+                      minTickGap={24}
                     />
                     <YAxis yAxisId="left" tick={AXIS_TICK} stroke={AXIS_STROKE} allowDecimals={false} />
                     <YAxis yAxisId="right" orientation="right" tick={AXIS_TICK} stroke={AXIS_STROKE} />
@@ -612,6 +629,7 @@ export function AdminView({ onBack }: Props) {
                     <Legend wrapperStyle={{ fontSize: 11, paddingTop: 4 }} />
                     <Line yAxisId="left" type="monotone" dataKey="swaps" stroke="#e59636" strokeWidth={2} dot={{ r: 3 }} name="Swaps" />
                     <Line yAxisId="right" type="monotone" dataKey="volume" stroke="#c97d1e" strokeWidth={2} strokeDasharray="4 4" dot={false} name="Volume USD" />
+                    <Line yAxisId="right" type="monotone" dataKey="cumulativeVolume" stroke="#8a5a12" strokeWidth={2} dot={false} name="Cumulative volume USD" />
                   </LineChart>
                 </ResponsiveContainer>
               </div>
@@ -651,7 +669,7 @@ export function AdminView({ onBack }: Props) {
                     <ResponsiveContainer width="100%" height="100%">
                       <LineChart data={overview.dauSeries} margin={{ top: 6, right: 16, bottom: 0, left: -8 }}>
                         <CartesianGrid stroke={GRID_STROKE} strokeDasharray="3 3" vertical={false} />
-                        <XAxis dataKey="date" tick={AXIS_TICK} tickFormatter={(d: string) => d.slice(5)} stroke={AXIS_STROKE} interval={0} />
+                        <XAxis dataKey="date" tick={AXIS_TICK} tickFormatter={(d: string) => d.slice(5)} stroke={AXIS_STROKE} interval="preserveStartEnd" minTickGap={24} />
                         <YAxis tick={AXIS_TICK} stroke={AXIS_STROKE} allowDecimals={false} />
                         <Tooltip contentStyle={TOOLTIP_STYLE} />
                         <Line type="monotone" dataKey="wallets" stroke="#e59636" strokeWidth={2} dot={{ r: 3 }} />
@@ -667,7 +685,7 @@ export function AdminView({ onBack }: Props) {
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart data={overview.newWalletsSeries} margin={{ top: 6, right: 16, bottom: 0, left: -8 }}>
                         <CartesianGrid stroke={GRID_STROKE} strokeDasharray="3 3" vertical={false} />
-                        <XAxis dataKey="date" tick={AXIS_TICK} tickFormatter={(d: string) => d.slice(5)} stroke={AXIS_STROKE} interval={0} />
+                        <XAxis dataKey="date" tick={AXIS_TICK} tickFormatter={(d: string) => d.slice(5)} stroke={AXIS_STROKE} interval="preserveStartEnd" minTickGap={24} />
                         <YAxis tick={AXIS_TICK} stroke={AXIS_STROKE} allowDecimals={false} />
                         <Tooltip contentStyle={TOOLTIP_STYLE} />
                         <Bar dataKey="count" fill="#c97d1e" radius={[3, 3, 0, 0]} />
@@ -684,7 +702,7 @@ export function AdminView({ onBack }: Props) {
               <p className="hf-admin-panel-title">BridgeKitty revenue (integrator fees)</p>
               <div style={{ width: '100%', height: 240 }}>
                 <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={overview.revenueSeries} margin={{ top: 6, right: 16, bottom: 0, left: -8 }}>
+                  <ComposedChart data={overview.revenueSeries} margin={{ top: 6, right: 16, bottom: 0, left: -8 }}>
                     <defs>
                       <linearGradient id="revGrad" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="5%" stopColor="#e59636" stopOpacity={0.45} />
@@ -692,17 +710,95 @@ export function AdminView({ onBack }: Props) {
                       </linearGradient>
                     </defs>
                     <CartesianGrid stroke={GRID_STROKE} strokeDasharray="3 3" vertical={false} />
-                    <XAxis dataKey="date" tick={AXIS_TICK} tickFormatter={(d: string) => d.slice(5)} stroke={AXIS_STROKE} interval={0} />
-                    <YAxis tick={AXIS_TICK} stroke={AXIS_STROKE} tickFormatter={(v: number) => `$${v.toFixed(2)}`} />
+                    <XAxis dataKey="date" tick={AXIS_TICK} tickFormatter={(d: string) => d.slice(5)} stroke={AXIS_STROKE} interval="preserveStartEnd" minTickGap={24} />
+                    <YAxis yAxisId="left" tick={AXIS_TICK} stroke={AXIS_STROKE} tickFormatter={(v: number) => `$${v.toFixed(2)}`} />
+                    <YAxis yAxisId="right" orientation="right" tick={AXIS_TICK} stroke={AXIS_STROKE} tickFormatter={(v: number) => `$${v.toFixed(2)}`} />
                     <Tooltip contentStyle={TOOLTIP_STYLE} />
                     <Legend wrapperStyle={{ fontSize: 11, paddingTop: 4 }} />
-                    <Area type="monotone" dataKey="integratorFeeUsd" stroke="#e59636" strokeWidth={2} fill="url(#revGrad)" name="Integrator fee (revenue)" />
-                    <Area type="monotone" dataKey="totalFeeUsd" stroke="#c97d1e" strokeWidth={2} strokeDasharray="4 4" fillOpacity={0} name="Total fees (incl. gas/protocol)" />
-                  </AreaChart>
+                    <Area yAxisId="left" type="monotone" dataKey="integratorFeeUsd" stroke="#e59636" strokeWidth={2} fill="url(#revGrad)" name="Integrator fee (revenue)" />
+                    <Area yAxisId="left" type="monotone" dataKey="totalFeeUsd" stroke="#c97d1e" strokeWidth={2} strokeDasharray="4 4" fillOpacity={0} name="Total fees (incl. gas/protocol)" />
+                    <Line yAxisId="right" type="monotone" dataKey="cumulativeIntegratorFeeUsd" stroke="#8a5a12" strokeWidth={2} dot={false} name="Cumulative revenue" />
+                    <Line yAxisId="right" type="monotone" dataKey="cumulativeTotalFeeUsd" stroke="#a36a1f" strokeWidth={2} strokeDasharray="2 2" dot={false} name="Cumulative total fees" />
+                  </ComposedChart>
                 </ResponsiveContainer>
               </div>
             </div>
           )}
+
+          {(() => {
+            const assetSlices = toAssetSlices(overview.assetBreakdown);
+            const feeRows = Object.entries(overview.feeBreakdown)
+              .map(([token, f]) => ({ token, feeUsd: f.feeUsd, integratorFeeUsd: f.integratorFeeUsd }))
+              .filter((r) => r.feeUsd > 0 || r.integratorFeeUsd > 0)
+              .sort((a, b) => b.feeUsd - a.feeUsd);
+            const { rows: assetDaily, assets: assetKeys } = flattenAssetSeries(
+              overview.dailySeries,
+              overview.assetBreakdown
+            );
+            return (
+              <>
+                {(assetSlices.length > 0 || feeRows.length > 0) && (
+                  <div className="hf-admin-charts-row">
+                    {assetSlices.length > 0 && (
+                      <div className="hf-admin-panel">
+                        <p className="hf-admin-panel-title">Volume by asset</p>
+                        <div style={{ width: '100%', height: 240 }}>
+                          <ResponsiveContainer width="100%" height="100%">
+                            <PieChart>
+                              <Pie data={assetSlices} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={55} outerRadius={88} paddingAngle={2}>
+                                {assetSlices.map((_, i) => (
+                                  <Cell key={i} fill={assetColor(i)} />
+                                ))}
+                              </Pie>
+                              <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(value, name) => [formatUsd(Number(value)), name]} />
+                              <Legend wrapperStyle={{ fontSize: 11 }} />
+                            </PieChart>
+                          </ResponsiveContainer>
+                        </div>
+                      </div>
+                    )}
+                    {feeRows.length > 0 && (
+                      <div className="hf-admin-panel">
+                        <p className="hf-admin-panel-title">Fees by asset</p>
+                        <div style={{ width: '100%', height: Math.max(160, feeRows.length * 40 + 50) }}>
+                          <ResponsiveContainer width="100%" height="100%">
+                            <BarChart data={feeRows} layout="vertical" margin={{ top: 4, right: 24, bottom: 4, left: 4 }}>
+                              <CartesianGrid stroke={GRID_STROKE} strokeDasharray="3 3" horizontal={false} />
+                              <XAxis type="number" tick={AXIS_TICK} stroke={AXIS_STROKE} tickFormatter={(v: number) => `$${v.toFixed(2)}`} />
+                              <YAxis dataKey="token" type="category" tick={AXIS_TICK} stroke={AXIS_STROKE} width={70} />
+                              <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(value, name) => [formatUsd(Number(value)), name]} />
+                              <Legend wrapperStyle={{ fontSize: 11, paddingTop: 4 }} />
+                              <Bar dataKey="feeUsd" fill="#c97d1e" radius={[0, 4, 4, 0]} name="Total fees" />
+                              <Bar dataKey="integratorFeeUsd" fill="#e59636" radius={[0, 4, 4, 0]} name="Integrator (revenue)" />
+                            </BarChart>
+                          </ResponsiveContainer>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+                {assetKeys.length > 0 && assetDaily.length > 0 && (
+                  <div className="hf-admin-panel">
+                    <p className="hf-admin-panel-title">Volume by asset (daily)</p>
+                    <div style={{ width: '100%', height: 260 }}>
+                      <ResponsiveContainer width="100%" height="100%">
+                        <AreaChart data={assetDaily} margin={{ top: 6, right: 16, bottom: 0, left: -8 }}>
+                          <CartesianGrid stroke={GRID_STROKE} strokeDasharray="3 3" vertical={false} />
+                          <XAxis dataKey="date" tick={AXIS_TICK} tickFormatter={(d: string) => d.slice(5)} stroke={AXIS_STROKE} interval="preserveStartEnd" minTickGap={24} />
+                          <YAxis tick={AXIS_TICK} stroke={AXIS_STROKE} tickFormatter={(v: number) => `$${v.toFixed(2)}`} />
+                          <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(value, name) => [formatUsd(Number(value)), name]} />
+                          <Legend wrapperStyle={{ fontSize: 11, paddingTop: 4 }} />
+                          {assetKeys.map((sym, i) => (
+                            <Area key={sym} type="monotone" dataKey={sym} stackId="assets" stroke={assetColor(i)} fill={assetColor(i)} fillOpacity={0.55} name={sym} />
+                          ))}
+                        </AreaChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+                )}
+              </>
+            );
+          })()}
 
           {overview.statusFunnel.length > 0 && (
             <div className="hf-admin-panel">
