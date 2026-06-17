@@ -19,6 +19,7 @@ import {
 import { API_BASE_URL } from '../constants';
 import { ChainBadge } from './AssetBadge';
 import { assetColor, toAssetSlices, flattenAssetSeries } from '../lib/assetSeries';
+import { useChartTheme } from '../hooks/useChartTheme';
 
 type Period = '7d' | '15d' | '30d' | 'all';
 
@@ -82,6 +83,7 @@ export function StatsView({ onBack }: Props) {
   const [data, setData] = useState<StatsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const chart = useChartTheme();
 
   useEffect(() => {
     setLoading(true);
@@ -151,35 +153,30 @@ export function StatsView({ onBack }: Props) {
               <div style={{ width: '100%', height: 220 }}>
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={series} margin={{ top: 6, right: 8, bottom: 0, left: -16 }}>
-                    <CartesianGrid stroke="rgba(229, 150, 54, 0.12)" strokeDasharray="3 3" vertical={false} />
+                    <CartesianGrid stroke={chart.gridStroke} strokeDasharray="3 3" vertical={false} />
                     <XAxis
                       dataKey="date"
-                      tick={{ fontSize: 10, fill: 'rgba(29, 19, 6, 0.55)' }}
+                      tick={chart.axisTick}
                       tickFormatter={(d: string) => d.slice(5)}
-                      stroke="rgba(229, 150, 54, 0.25)"
+                      stroke={chart.axisStroke}
                       interval="preserveStartEnd"
                       minTickGap={24}
                     />
                     <YAxis
-                      tick={{ fontSize: 10, fill: 'rgba(29, 19, 6, 0.55)' }}
-                      stroke="rgba(229, 150, 54, 0.25)"
+                      tick={chart.axisTick}
+                      stroke={chart.axisStroke}
                       allowDecimals={false}
                     />
                     <Tooltip
-                      contentStyle={{
-                        background: '#fff',
-                        border: '1px solid rgba(229, 150, 54, 0.3)',
-                        borderRadius: 8,
-                        fontSize: 12,
-                      }}
+                      contentStyle={chart.tooltip}
                       labelStyle={{ fontWeight: 600 }}
                     />
                     <Line
                       type="monotone"
                       dataKey="swaps"
-                      stroke="#e59636"
+                      stroke={chart.linePrimary}
                       strokeWidth={2}
-                      dot={{ r: 3, fill: '#e59636' }}
+                      dot={{ r: 3, fill: chart.linePrimary }}
                       activeDot={{ r: 5 }}
                     />
                   </LineChart>
@@ -204,35 +201,30 @@ export function StatsView({ onBack }: Props) {
                         <stop offset="95%" stopColor="#c97d1e" stopOpacity={0.02} />
                       </linearGradient>
                     </defs>
-                    <CartesianGrid stroke="rgba(229, 150, 54, 0.12)" strokeDasharray="3 3" vertical={false} />
+                    <CartesianGrid stroke={chart.gridStroke} strokeDasharray="3 3" vertical={false} />
                     <XAxis
                       dataKey="date"
-                      tick={{ fontSize: 10, fill: 'rgba(29, 19, 6, 0.55)' }}
+                      tick={chart.axisTick}
                       tickFormatter={(d: string) => d.slice(5)}
-                      stroke="rgba(229, 150, 54, 0.25)"
+                      stroke={chart.axisStroke}
                       interval="preserveStartEnd"
                       minTickGap={24}
                     />
                     <YAxis
                       yAxisId="left"
-                      tick={{ fontSize: 10, fill: 'rgba(29, 19, 6, 0.55)' }}
-                      stroke="rgba(229, 150, 54, 0.25)"
+                      tick={chart.axisTick}
+                      stroke={chart.axisStroke}
                       allowDecimals={false}
                     />
                     <YAxis
                       yAxisId="right"
                       orientation="right"
-                      tick={{ fontSize: 10, fill: 'rgba(29, 19, 6, 0.55)' }}
-                      stroke="rgba(229, 150, 54, 0.25)"
+                      tick={chart.axisTick}
+                      stroke={chart.axisStroke}
                       tickFormatter={(v: number) => formatUsd(v)}
                     />
                     <Tooltip
-                      contentStyle={{
-                        background: '#fff',
-                        border: '1px solid rgba(229, 150, 54, 0.3)',
-                        borderRadius: 8,
-                        fontSize: 12,
-                      }}
+                      contentStyle={chart.tooltip}
                       labelStyle={{ fontWeight: 600 }}
                       formatter={(value, name) =>
                         name === 'Total volume' ? [formatUsd(Number(value)), name] : [value, name]
@@ -243,7 +235,7 @@ export function StatsView({ onBack }: Props) {
                       yAxisId="left"
                       type="monotone"
                       dataKey="swaps"
-                      stroke="#e59636"
+                      stroke={chart.linePrimary}
                       strokeWidth={2}
                       fill="url(#growthSwaps)"
                       name="Total swaps"
@@ -252,7 +244,7 @@ export function StatsView({ onBack }: Props) {
                       yAxisId="left"
                       type="monotone"
                       dataKey="wallets"
-                      stroke="#c97d1e"
+                      stroke={chart.lineSecondary}
                       strokeWidth={2}
                       fill="url(#growthWallets)"
                       name="Total users"
@@ -261,7 +253,7 @@ export function StatsView({ onBack }: Props) {
                       yAxisId="right"
                       type="monotone"
                       dataKey="volume"
-                      stroke="#8a5a12"
+                      stroke={chart.lineTertiary}
                       strokeWidth={2}
                       strokeDasharray="4 4"
                       dot={false}
@@ -294,12 +286,7 @@ export function StatsView({ onBack }: Props) {
                       ))}
                     </Pie>
                     <Tooltip
-                      contentStyle={{
-                        background: '#fff',
-                        border: '1px solid rgba(229, 150, 54, 0.3)',
-                        borderRadius: 8,
-                        fontSize: 12,
-                      }}
+                      contentStyle={chart.tooltip}
                       formatter={(value, name) => [formatUsd(Number(value)), name]}
                     />
                     <Legend wrapperStyle={{ fontSize: 11 }} />
@@ -315,27 +302,22 @@ export function StatsView({ onBack }: Props) {
               <div style={{ width: '100%', height: 240 }}>
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={assetDaily} margin={{ top: 6, right: 8, bottom: 0, left: -16 }}>
-                    <CartesianGrid stroke="rgba(229, 150, 54, 0.12)" strokeDasharray="3 3" vertical={false} />
+                    <CartesianGrid stroke={chart.gridStroke} strokeDasharray="3 3" vertical={false} />
                     <XAxis
                       dataKey="date"
-                      tick={{ fontSize: 10, fill: 'rgba(29, 19, 6, 0.55)' }}
+                      tick={chart.axisTick}
                       tickFormatter={(d: string) => d.slice(5)}
-                      stroke="rgba(229, 150, 54, 0.25)"
+                      stroke={chart.axisStroke}
                       interval="preserveStartEnd"
                       minTickGap={24}
                     />
                     <YAxis
-                      tick={{ fontSize: 10, fill: 'rgba(29, 19, 6, 0.55)' }}
-                      stroke="rgba(229, 150, 54, 0.25)"
+                      tick={chart.axisTick}
+                      stroke={chart.axisStroke}
                       tickFormatter={(v: number) => formatUsd(v)}
                     />
                     <Tooltip
-                      contentStyle={{
-                        background: '#fff',
-                        border: '1px solid rgba(229, 150, 54, 0.3)',
-                        borderRadius: 8,
-                        fontSize: 12,
-                      }}
+                      contentStyle={chart.tooltip}
                       formatter={(value, name) => [formatUsd(Number(value)), name]}
                     />
                     <Legend wrapperStyle={{ fontSize: 11, paddingTop: 4 }} />
