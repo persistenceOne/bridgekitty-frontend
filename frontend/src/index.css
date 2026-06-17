@@ -612,11 +612,15 @@ button {
 }
 
 .hf-role-card {
-  border: 1px solid var(--hf-border);
+  border: 1px solid var(--hf-glass-border);
   border-radius: var(--hf-radius);
   padding: 1.35rem 1.25rem;
-  background: var(--hf-bg-card);
-  box-shadow: var(--hf-shadow-card);
+  /* Liquid Glass hero card */
+  background-color: var(--hf-glass-bg);
+  background-image: linear-gradient(180deg, var(--hf-glass-tint) 0%, transparent 55%);
+  -webkit-backdrop-filter: blur(var(--hf-glass-blur)) saturate(var(--hf-glass-saturate));
+  backdrop-filter: blur(var(--hf-glass-blur)) saturate(var(--hf-glass-saturate));
+  box-shadow: var(--hf-shadow-card), inset 0 1px 0 0 var(--hf-glass-highlight);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -624,6 +628,12 @@ button {
   transition: all var(--hf-transition);
   position: relative;
   overflow: hidden;
+}
+
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .hf-role-card {
+    background-color: var(--hf-bg-card);
+  }
 }
 
 .hf-role-card::before {
@@ -754,15 +764,25 @@ button {
   flex-direction: column;
   align-items: center;
   padding: 1.5rem 1rem 1.3rem;
-  background: var(--hf-bg-card);
+  /* Glass-look stat tile on the landing page */
+  background-color: var(--hf-glass-bg);
+  background-image: linear-gradient(180deg, var(--hf-glass-tint) 0%, transparent 55%);
+  -webkit-backdrop-filter: blur(var(--hf-glass-blur)) saturate(var(--hf-glass-saturate));
+  backdrop-filter: blur(var(--hf-glass-blur)) saturate(var(--hf-glass-saturate));
+  border: 1px solid var(--hf-glass-border);
   border-radius: var(--hf-radius);
-  box-shadow:
-    0 2px 12px rgba(29, 19, 6, 0.08),
-    0 1px 3px rgba(29, 19, 6, 0.05);
+  box-shadow: var(--hf-glass-shadow), inset 0 1px 0 0 var(--hf-glass-highlight);
   text-align: center;
   transition:
     transform 0.2s ease,
     box-shadow 0.2s ease;
+}
+
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .hf-stat-item {
+    background-color: var(--hf-bg-card);
+    background-image: none;
+  }
 }
 
 .hf-stat-item:hover {
@@ -879,9 +899,13 @@ button {
 
 /* Sections */
 .hf-agent-section {
-  background: var(--hf-bg-card);
-  border: 1px solid var(--hf-border);
+  /* Glass-look agent section card. No backdrop-filter for consistency
+     with other content cards that contain text and code blocks. */
+  background-color: var(--hf-bg-card);
+  background-image: linear-gradient(180deg, var(--hf-glass-tint) 0%, transparent 55%);
+  border: 1px solid var(--hf-glass-border);
   border-radius: var(--hf-radius);
+  box-shadow: var(--hf-shadow-card), inset 0 1px 0 0 var(--hf-glass-highlight);
   padding: 1.5rem;
   box-shadow: var(--hf-shadow-card);
 }
@@ -1578,12 +1602,15 @@ button {
 /* ─── Swap Card ──────────────────────────────────────── */
 .hf-swap-card {
   width: min(460px, 100%);
-  background: var(--hf-bg-card);
-  border: 1px solid var(--hf-border);
+  /* Glass-look swap card. No backdrop-filter — the form fields inside
+     need to stay crisp and readable for financial data entry. */
+  background-color: var(--hf-bg-card);
+  background-image: linear-gradient(180deg, var(--hf-glass-tint) 0%, transparent 55%);
+  border: 1px solid var(--hf-glass-border);
   border-radius: var(--hf-radius);
   padding: 1.4rem;
   position: relative;
-  box-shadow: var(--hf-shadow-elevated);
+  box-shadow: var(--hf-shadow-elevated), inset 0 1px 0 0 var(--hf-glass-highlight);
 }
 
 /* Symmetric corner icon buttons (back = top-left, history = top-right) */
@@ -1591,8 +1618,11 @@ button {
   position: absolute;
   top: 0.75rem;
   left: 0.8rem;
-  border: 1px solid var(--hf-border);
-  background: var(--hf-bg-elevated);
+  border: 1px solid var(--hf-glass-border);
+  background-color: var(--hf-glass-bg);
+  -webkit-backdrop-filter: blur(8px) saturate(var(--hf-glass-saturate));
+  backdrop-filter: blur(8px) saturate(var(--hf-glass-saturate));
+  box-shadow: inset 0 1px 0 0 var(--hf-glass-highlight);
   color: var(--hf-text-secondary);
   border-radius: 999px;
   width: 1.9rem;
@@ -1605,6 +1635,12 @@ button {
     color var(--hf-transition),
     border-color var(--hf-transition),
     transform var(--hf-transition);
+}
+
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .hf-card-corner-btn {
+    background-color: var(--hf-bg-elevated);
+  }
 }
 
 .hf-card-corner-btn--right {
@@ -2058,9 +2094,22 @@ button {
   inset: 0;
   z-index: 10;
   border-radius: var(--hf-radius);
-  background: var(--hf-bg-card);
+  /* Liquid Glass settings panel */
+  background-color: var(--hf-glass-bg-strong);
+  background-image: linear-gradient(180deg, var(--hf-glass-tint) 0%, transparent 55%);
+  -webkit-backdrop-filter: blur(14px) saturate(var(--hf-glass-saturate));
+  backdrop-filter: blur(14px) saturate(var(--hf-glass-saturate));
+  border: 1px solid var(--hf-glass-border);
+  box-shadow: inset 0 1px 0 0 var(--hf-glass-highlight);
   display: flex;
   flex-direction: column;
+}
+
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .hf-settings-overlay {
+    background-color: var(--hf-bg-card);
+    background-image: none;
+  }
 }
 
 .hf-settings-panel {
@@ -2244,9 +2293,12 @@ button {
   display: flex;
   align-items: center;
   gap: 0.4rem;
-  border: 1px solid var(--hf-border);
+  border: 1px solid var(--hf-glass-border);
   border-radius: 999px;
-  background: var(--hf-bg-card);
+  background-color: var(--hf-glass-bg);
+  -webkit-backdrop-filter: blur(10px) saturate(var(--hf-glass-saturate));
+  backdrop-filter: blur(10px) saturate(var(--hf-glass-saturate));
+  box-shadow: 0 1px 4px rgba(29, 19, 6, 0.07), inset 0 1px 0 0 var(--hf-glass-highlight);
   color: var(--hf-text-primary);
   padding: 0.3rem 0.6rem 0.3rem 0.35rem;
   font-size: 0.82rem;
@@ -2254,12 +2306,17 @@ button {
   transition: all var(--hf-transition);
   cursor: pointer;
   white-space: nowrap;
-  box-shadow: 0 1px 4px rgba(29, 19, 6, 0.07);
+}
+
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .hf-token-btn {
+    background-color: var(--hf-bg-card);
+  }
 }
 
 .hf-token-btn:hover {
   border-color: var(--hf-border-active);
-  box-shadow: 0 2px 8px rgba(229, 150, 54, 0.1);
+  box-shadow: 0 2px 8px rgba(229, 150, 54, 0.1), inset 0 1px 0 0 var(--hf-glass-highlight);
 }
 
 .hf-token-btn img {
@@ -4096,10 +4153,22 @@ button {
 }
 
 .hf-stat-card {
-  background: var(--hf-bg-surface);
-  border: 1px solid var(--hf-border);
+  /* Liquid Glass stat tile */
+  background-color: var(--hf-glass-bg);
+  background-image: linear-gradient(180deg, var(--hf-glass-tint) 0%, transparent 60%);
+  -webkit-backdrop-filter: blur(12px) saturate(var(--hf-glass-saturate));
+  backdrop-filter: blur(12px) saturate(var(--hf-glass-saturate));
+  border: 1px solid var(--hf-glass-border);
   border-radius: 12px;
   padding: 0.9rem 1rem;
+  box-shadow: inset 0 1px 0 0 var(--hf-glass-highlight);
+}
+
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .hf-stat-card {
+    background-color: var(--hf-bg-surface);
+    background-image: none;
+  }
 }
 
 .hf-stat-card-label {
@@ -4146,6 +4215,16 @@ button {
 
 .hf-stats-section {
   margin-bottom: 1.5rem;
+  /* Glass-look section card. NOTE: no backdrop-filter here — Chromium fails
+     to composite SVG (recharts) children inside a backdrop-filtered box, which
+     blanks the charts. We use a near-opaque tinted fill + lit edge to get the
+     frosted-card aesthetic without breaking the charts. */
+  background-color: var(--hf-bg-card);
+  background-image: linear-gradient(180deg, var(--hf-glass-tint) 0%, transparent 55%);
+  border: 1px solid var(--hf-glass-border);
+  border-radius: var(--hf-radius-sm);
+  box-shadow: var(--hf-shadow-card), inset 0 1px 0 0 var(--hf-glass-highlight);
+  padding: 1rem 1.1rem 1.1rem;
 }
 
 .hf-stats-section-title {
@@ -4333,10 +4412,16 @@ button {
 }
 
 .hf-admin-panel {
-  background: var(--hf-bg-card);
-  border: 1px solid var(--hf-border);
+  /* Glass-look admin panel. No backdrop-filter here — Chromium fails to
+     composite SVG (recharts) children inside a backdrop-filtered box,
+     which blanks the charts. We use a near-opaque tinted fill + lit edge
+     to get the frosted-card aesthetic without breaking the charts. */
+  background-color: var(--hf-bg-card);
+  background-image: linear-gradient(180deg, var(--hf-glass-tint) 0%, transparent 55%);
+  border: 1px solid var(--hf-glass-border);
   border-radius: 16px;
   padding: 1.1rem 1.25rem;
+  box-shadow: var(--hf-shadow-card), inset 0 1px 0 0 var(--hf-glass-highlight);
 }
 
 .hf-admin-panel-title {
