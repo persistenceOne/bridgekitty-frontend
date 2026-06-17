@@ -66,6 +66,104 @@
   --hf-transition: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+/* ─── Dark Theme ─────────────────────────────────────────────
+   Overrides the design tokens above when <html data-theme="dark">.
+   Because ~497 rules consume these tokens via var(--hf-*), redefining
+   the tokens here re-skins the entire UI without touching components.
+   Palette: warm charcoal/espresso backgrounds, amber brand kept vivid,
+   text inverted to warm off-whites. */
+[data-theme="dark"] {
+  /* Backgrounds — warm espresso, layered light→dark by elevation */
+  --hf-bg: #140f08;
+  --hf-bg-surface: #1d160c;
+  --hf-bg-card: #241a10;
+  --hf-bg-elevated: #2c2113;
+  --hf-bg-input: #1a130a;
+
+  /* Borders — warm orange-tinted, brighter to read on dark */
+  --hf-border: rgba(229, 150, 54, 0.22);
+  --hf-border-active: rgba(229, 150, 54, 0.65);
+
+  /* Typography — warm off-whites */
+  --hf-text-primary: #f6ecdc;
+  --hf-text-secondary: rgba(246, 236, 220, 0.62);
+  --hf-text-muted: rgba(246, 236, 220, 0.38);
+
+  /* Brand palette — keep amber vivid, lift glows for dark */
+  --hf-primary: #ed9f3f;
+  --hf-primary-dark: #c97d1e;
+  --hf-primary-glow: rgba(229, 150, 54, 0.28);
+  --hf-primary-text: #1d1306;
+  --hf-secondary: #e0b07a;
+  --hf-secondary-dark: #c9925a;
+  --hf-tertiary: #4fd178;
+  --hf-tertiary-soft: #1f4a39;
+  --hf-neutral: #f6ecdc;
+  --hf-warning: #ed9f3f;
+  --hf-error: #ef5d6b;
+
+  /* Gradients — darker base so brand reads against espresso */
+  --hf-gradient-brand: linear-gradient(135deg, #ed9f3f 0%, #8a5418 100%);
+  --hf-gradient-brand-wide: linear-gradient(
+    135deg,
+    #ed9f3f 0%,
+    #c97d1e 50%,
+    #6e4011 100%
+  );
+  --hf-gradient-card: linear-gradient(
+    145deg,
+    rgba(229, 150, 54, 0.08) 0%,
+    rgba(99, 60, 13, 0.04) 100%
+  );
+
+  /* Shadows — deep, no warm tint bleed on dark */
+  --hf-shadow-card:
+    0 1px 3px rgba(0, 0, 0, 0.4), 0 4px 18px rgba(0, 0, 0, 0.45);
+  --hf-shadow-elevated: 0 8px 36px rgba(0, 0, 0, 0.55);
+}
+
+/* Smooth the flip between themes for surfaces, text and borders. */
+/* ─── Smooth theme switching ──────────────────────────────────
+   During a light↔dark switch we add `.theme-transition` to <html> for a
+   short window. The !important crossfade is applied uniformly to every
+   element so nothing snaps (component-level transitions would otherwise
+   override a permanent rule and switch instantly). It's removed right
+   after, so hover/interaction transitions keep their own timing. */
+.theme-transition *,
+.theme-transition *::before,
+.theme-transition *::after {
+  transition:
+    background-color 320ms ease,
+    background-image 320ms ease,
+    border-color 320ms ease,
+    color 320ms ease,
+    fill 320ms ease,
+    stroke 320ms ease,
+    box-shadow 320ms ease !important;
+  transition-delay: 0ms !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .theme-transition *,
+  .theme-transition *::before,
+  .theme-transition *::after {
+    transition: none !important;
+  }
+}
+
+/* The decorative /background.svg is a warm-light pattern. On dark it would
+   wash out the espresso base, so drop it and let --hf-bg carry a subtle
+   amber radial glow instead. */
+[data-theme="dark"] body {
+  background-image:
+    radial-gradient(
+      1200px 600px at 50% -10%,
+      rgba(229, 150, 54, 0.10) 0%,
+      transparent 60%
+    );
+  background-attachment: fixed;
+}
+
 /* ─── Reset / Global ─────────────────────────────────── */
 *,
 *::before,
@@ -143,8 +241,50 @@ button {
   padding: 0.75rem max(1.5rem, env(safe-area-inset-left)) 0.75rem
     max(1.5rem, env(safe-area-inset-right));
   padding-top: max(0.75rem, env(safe-area-inset-top));
-  background: #ffffff;
+  background: var(--hf-bg-card);
   border-bottom: 1px solid var(--hf-border);
+}
+
+/* Header right-side cluster: theme toggle + wallet connector. */
+.hf-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+/* Sun/moon theme toggle. Token-driven so it restyles itself in dark. */
+.hf-theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  flex-shrink: 0;
+  border-radius: var(--hf-radius-sm);
+  border: 1px solid var(--hf-border);
+  background: var(--hf-bg-input);
+  color: var(--hf-text-secondary);
+  cursor: pointer;
+  transition:
+    background-color var(--hf-transition),
+    border-color var(--hf-transition),
+    color var(--hf-transition),
+    transform var(--hf-transition);
+}
+
+.hf-theme-toggle:hover {
+  color: var(--hf-primary);
+  border-color: var(--hf-border-active);
+  background: var(--hf-bg-elevated);
+}
+
+.hf-theme-toggle:active {
+  transform: scale(0.94);
+}
+
+.hf-theme-toggle:focus-visible {
+  outline: 2px solid var(--hf-primary);
+  outline-offset: 2px;
 }
 
 .hf-logo {
@@ -2997,7 +3137,7 @@ button {
   flex-direction: row;
   align-items: center;
   justify-content: space-between;
-  background: #ffffff;
+  background: var(--hf-bg-card);
   border-top: 1px solid var(--hf-border);
 }
 

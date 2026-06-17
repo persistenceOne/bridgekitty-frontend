@@ -13,6 +13,8 @@ import { SwapView } from './components/SwapView';
 import { StatsView } from './components/StatsView';
 import { AdminView } from './components/AdminView';
 import { TransactionHistoryModal } from './components/TransactionHistoryModal';
+import { ThemeToggle } from './components/ThemeToggle';
+import { useTheme } from './hooks/useTheme';
 import { loadCatalog, useCatalogReady, useChainByKey, useTokensFor } from './lib/catalogStore';
 import { usePrices } from './hooks/usePrices';
 import { useTokenBalances } from './hooks/useTokenBalances';
@@ -24,6 +26,7 @@ import type { EntryView, SwapDraft } from './types';
 
 function App() {
   const [view, setView] = useState<EntryView>('landing');
+  const { theme } = useTheme();
   const pendingLogin = useRef(false);
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
   const [walletBridge, setWalletBridge] = useState<PrivyWalletBridge | null>(null);
@@ -189,7 +192,7 @@ function App() {
             <span className="hf-logo-by">
               by
               <img
-                src="/persistence.png"
+                src={theme === 'dark' ? '/persistence-white.svg' : '/persistence.png'}
                 alt="Persistence"
                 className="hf-persistence-wordmark"
               />
@@ -197,9 +200,15 @@ function App() {
           </div>
         </div>
         {HAS_PRIVY ? (
-          <PrivyWalletConnector onWalletAddress={setWalletAddress} onWalletBridge={setWalletBridge} />
+          <div className="hf-header-actions">
+            <ThemeToggle />
+            <PrivyWalletConnector onWalletAddress={setWalletAddress} onWalletBridge={setWalletBridge} />
+          </div>
         ) : (
-          <DemoWalletConnector />
+          <div className="hf-header-actions">
+            <ThemeToggle />
+            <DemoWalletConnector />
+          </div>
         )}
       </header>
 
