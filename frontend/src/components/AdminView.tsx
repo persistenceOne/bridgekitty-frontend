@@ -24,6 +24,7 @@ import { BK_SOURCE_HEADER } from '../lib/apiBaseUrl';
 import { ChainBadge, TokenBadge, ProviderBadge } from './AssetBadge';
 import { getChainByKey, getToken, getChains as _getChains } from '../lib/catalogStore';
 import { assetColor, toAssetSlices, flattenAssetSeries } from '../lib/assetSeries';
+import { useChartTheme } from '../hooks/useChartTheme';
 
 /**
  * Admin-only analytics. Gated by the ADMIN_TOKEN backend secret — the user
@@ -203,18 +204,6 @@ interface Props {
   onBack: () => void;
 }
 
-const AXIS_TICK = { fontSize: 10, fill: 'rgba(29, 19, 6, 0.55)' };
-const AXIS_STROKE = 'rgba(229, 150, 54, 0.25)';
-const GRID_STROKE = 'rgba(229, 150, 54, 0.12)';
-const TOOLTIP_STYLE = {
-  background: '#fff',
-  border: '1px solid rgba(229, 150, 54, 0.3)',
-  borderRadius: 8,
-  fontSize: 12,
-};
-
-// Canonical funnel stage order. Statuses outside this list are shown after
-// "failed" so unexpected statuses don't disappear.
 const FUNNEL_ORDER = ['submitted', 'confirming', 'confirmed', 'bridging', 'completed', 'failed'];
 
 function orderStatusFunnel(rows: StatusRow[]): StatusRow[] {
@@ -332,7 +321,7 @@ function ChainAxisTick(props: { x?: number; y?: number; payload?: { value: strin
         textAnchor="end"
         fontSize={10}
         fontWeight={500}
-        fill="rgba(29, 19, 6, 0.75)"
+        fill="rgba(29, 19, 6, 0.78)"
         style={{ textTransform: 'capitalize' }}
       >
         {label}
@@ -376,7 +365,7 @@ function TokenAxisTick(props: { x?: number; y?: number; payload?: { value: strin
         textAnchor="end"
         fontSize={10}
         fontWeight={500}
-        fill="rgba(29, 19, 6, 0.75)"
+        fill="rgba(29, 19, 6, 0.78)"
       >
         {symbol}
       </text>
@@ -433,6 +422,8 @@ export function AdminView({ onBack }: Props) {
   const [providers, setProviders] = useState<ProviderStatRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [authError, setAuthError] = useState('');
+
+  const chart = useChartTheme();
 
   const authedFetch = useCallback(
     (path: string) =>
@@ -614,22 +605,22 @@ export function AdminView({ onBack }: Props) {
               <div style={{ width: '100%', height: 280 }}>
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={overview.dailySeries} margin={{ top: 8, right: 24, bottom: 4, left: 0 }}>
-                    <CartesianGrid stroke={GRID_STROKE} strokeDasharray="3 3" vertical={false} />
+                    <CartesianGrid stroke={chart.gridStroke} strokeDasharray="3 3" vertical={false} />
                     <XAxis
                       dataKey="date"
-                      tick={AXIS_TICK}
+                      tick={chart.axisTick}
                       tickFormatter={(d: string) => d.slice(5)}
-                      stroke={AXIS_STROKE}
+                      stroke={chart.axisStroke}
                       interval="preserveStartEnd"
                       minTickGap={24}
                     />
-                    <YAxis yAxisId="left" tick={AXIS_TICK} stroke={AXIS_STROKE} allowDecimals={false} />
-                    <YAxis yAxisId="right" orientation="right" tick={AXIS_TICK} stroke={AXIS_STROKE} />
-                    <Tooltip contentStyle={TOOLTIP_STYLE} />
+                    <YAxis yAxisId="left" tick={chart.axisTick} stroke={chart.axisStroke} allowDecimals={false} />
+                    <YAxis yAxisId="right" orientation="right" tick={chart.axisTick} stroke={chart.axisStroke} />
+                    <Tooltip contentStyle={chart.tooltip} />
                     <Legend wrapperStyle={{ fontSize: 11, paddingTop: 4 }} />
-                    <Line yAxisId="left" type="monotone" dataKey="swaps" stroke="#e59636" strokeWidth={2} dot={{ r: 3 }} name="Swaps" />
-                    <Line yAxisId="right" type="monotone" dataKey="volume" stroke="#c97d1e" strokeWidth={2} strokeDasharray="4 4" dot={false} name="Volume USD" />
-                    <Line yAxisId="right" type="monotone" dataKey="cumulativeVolume" stroke="#8a5a12" strokeWidth={2} dot={false} name="Cumulative volume USD" />
+                    <Line yAxisId="left" type="monotone" dataKey="swaps" stroke={chart.linePrimary} strokeWidth={2} dot={{ r: 3 }} name="Swaps" />
+                    <Line yAxisId="right" type="monotone" dataKey="volume" stroke={chart.lineSecondary} strokeWidth={2} strokeDasharray="4 4" dot={false} name="Volume USD" />
+                    <Line yAxisId="right" type="monotone" dataKey="cumulativeVolume" stroke={chart.lineTertiary} strokeWidth={2} dot={false} name="Cumulative volume USD" />
                   </LineChart>
                 </ResponsiveContainer>
               </div>
@@ -652,7 +643,7 @@ export function AdminView({ onBack }: Props) {
                       link={{ stroke: '#e59636', strokeOpacity: 0.35 }}
                       node={<SankeyNodeWithLabel />}
                     >
-                      <Tooltip contentStyle={TOOLTIP_STYLE} />
+                      <Tooltip contentStyle={chart.tooltip} />
                     </Sankey>
                   </ResponsiveContainer>
                 </div>
@@ -668,11 +659,11 @@ export function AdminView({ onBack }: Props) {
                   <div style={{ width: '100%', height: 220 }}>
                     <ResponsiveContainer width="100%" height="100%">
                       <LineChart data={overview.dauSeries} margin={{ top: 6, right: 16, bottom: 0, left: -8 }}>
-                        <CartesianGrid stroke={GRID_STROKE} strokeDasharray="3 3" vertical={false} />
-                        <XAxis dataKey="date" tick={AXIS_TICK} tickFormatter={(d: string) => d.slice(5)} stroke={AXIS_STROKE} interval="preserveStartEnd" minTickGap={24} />
-                        <YAxis tick={AXIS_TICK} stroke={AXIS_STROKE} allowDecimals={false} />
-                        <Tooltip contentStyle={TOOLTIP_STYLE} />
-                        <Line type="monotone" dataKey="wallets" stroke="#e59636" strokeWidth={2} dot={{ r: 3 }} />
+                        <CartesianGrid stroke={chart.gridStroke} strokeDasharray="3 3" vertical={false} />
+                        <XAxis dataKey="date" tick={chart.axisTick} tickFormatter={(d: string) => d.slice(5)} stroke={chart.axisStroke} interval="preserveStartEnd" minTickGap={24} />
+                        <YAxis tick={chart.axisTick} stroke={chart.axisStroke} allowDecimals={false} />
+                        <Tooltip contentStyle={chart.tooltip} />
+                        <Line type="monotone" dataKey="wallets" stroke={chart.linePrimary} strokeWidth={2} dot={{ r: 3 }} />
                       </LineChart>
                     </ResponsiveContainer>
                   </div>
@@ -684,11 +675,11 @@ export function AdminView({ onBack }: Props) {
                   <div style={{ width: '100%', height: 220 }}>
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart data={overview.newWalletsSeries} margin={{ top: 6, right: 16, bottom: 0, left: -8 }}>
-                        <CartesianGrid stroke={GRID_STROKE} strokeDasharray="3 3" vertical={false} />
-                        <XAxis dataKey="date" tick={AXIS_TICK} tickFormatter={(d: string) => d.slice(5)} stroke={AXIS_STROKE} interval="preserveStartEnd" minTickGap={24} />
-                        <YAxis tick={AXIS_TICK} stroke={AXIS_STROKE} allowDecimals={false} />
-                        <Tooltip contentStyle={TOOLTIP_STYLE} />
-                        <Bar dataKey="count" fill="#c97d1e" radius={[3, 3, 0, 0]} />
+                        <CartesianGrid stroke={chart.gridStroke} strokeDasharray="3 3" vertical={false} />
+                        <XAxis dataKey="date" tick={chart.axisTick} tickFormatter={(d: string) => d.slice(5)} stroke={chart.axisStroke} interval="preserveStartEnd" minTickGap={24} />
+                        <YAxis tick={chart.axisTick} stroke={chart.axisStroke} allowDecimals={false} />
+                        <Tooltip contentStyle={chart.tooltip} />
+                        <Bar dataKey="count" fill={chart.barFill} radius={[3, 3, 0, 0]} />
                       </BarChart>
                     </ResponsiveContainer>
                   </div>
@@ -709,16 +700,16 @@ export function AdminView({ onBack }: Props) {
                         <stop offset="95%" stopColor="#e59636" stopOpacity={0.02} />
                       </linearGradient>
                     </defs>
-                    <CartesianGrid stroke={GRID_STROKE} strokeDasharray="3 3" vertical={false} />
-                    <XAxis dataKey="date" tick={AXIS_TICK} tickFormatter={(d: string) => d.slice(5)} stroke={AXIS_STROKE} interval="preserveStartEnd" minTickGap={24} />
-                    <YAxis yAxisId="left" tick={AXIS_TICK} stroke={AXIS_STROKE} tickFormatter={(v: number) => `$${v.toFixed(2)}`} />
-                    <YAxis yAxisId="right" orientation="right" tick={AXIS_TICK} stroke={AXIS_STROKE} tickFormatter={(v: number) => `$${v.toFixed(2)}`} />
-                    <Tooltip contentStyle={TOOLTIP_STYLE} />
+                    <CartesianGrid stroke={chart.gridStroke} strokeDasharray="3 3" vertical={false} />
+                    <XAxis dataKey="date" tick={chart.axisTick} tickFormatter={(d: string) => d.slice(5)} stroke={chart.axisStroke} interval="preserveStartEnd" minTickGap={24} />
+                    <YAxis yAxisId="left" tick={chart.axisTick} stroke={chart.axisStroke} tickFormatter={(v: number) => `$${v.toFixed(2)}`} />
+                    <YAxis yAxisId="right" orientation="right" tick={chart.axisTick} stroke={chart.axisStroke} tickFormatter={(v: number) => `$${v.toFixed(2)}`} />
+                    <Tooltip contentStyle={chart.tooltip} />
                     <Legend wrapperStyle={{ fontSize: 11, paddingTop: 4 }} />
-                    <Area yAxisId="left" type="monotone" dataKey="integratorFeeUsd" stroke="#e59636" strokeWidth={2} fill="url(#revGrad)" name="Integrator fee (revenue)" />
-                    <Area yAxisId="left" type="monotone" dataKey="totalFeeUsd" stroke="#c97d1e" strokeWidth={2} strokeDasharray="4 4" fillOpacity={0} name="Total fees (incl. gas/protocol)" />
-                    <Line yAxisId="right" type="monotone" dataKey="cumulativeIntegratorFeeUsd" stroke="#8a5a12" strokeWidth={2} dot={false} name="Cumulative revenue" />
-                    <Line yAxisId="right" type="monotone" dataKey="cumulativeTotalFeeUsd" stroke="#a36a1f" strokeWidth={2} strokeDasharray="2 2" dot={false} name="Cumulative total fees" />
+                    <Area yAxisId="left" type="monotone" dataKey="integratorFeeUsd" stroke={chart.linePrimary} strokeWidth={2} fill="url(#revGrad)" name="Integrator fee (revenue)" />
+                    <Area yAxisId="left" type="monotone" dataKey="totalFeeUsd" stroke={chart.lineSecondary} strokeWidth={2} strokeDasharray="4 4" fillOpacity={0} name="Total fees (incl. gas/protocol)" />
+                    <Line yAxisId="right" type="monotone" dataKey="cumulativeIntegratorFeeUsd" stroke={chart.lineTertiary} strokeWidth={2} dot={false} name="Cumulative revenue" />
+                    <Line yAxisId="right" type="monotone" dataKey="cumulativeTotalFeeUsd" stroke={chart.lineQuaternary} strokeWidth={2} strokeDasharray="2 2" dot={false} name="Cumulative total fees" />
                   </ComposedChart>
                 </ResponsiveContainer>
               </div>
@@ -750,7 +741,7 @@ export function AdminView({ onBack }: Props) {
                                   <Cell key={i} fill={assetColor(i)} />
                                 ))}
                               </Pie>
-                              <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(value, name) => [formatUsd(Number(value)), name]} />
+                              <Tooltip contentStyle={chart.tooltip} formatter={(value, name) => [formatUsd(Number(value)), name]} />
                               <Legend wrapperStyle={{ fontSize: 11 }} />
                             </PieChart>
                           </ResponsiveContainer>
@@ -763,12 +754,12 @@ export function AdminView({ onBack }: Props) {
                         <div style={{ width: '100%', height: Math.max(160, feeRows.length * 40 + 50) }}>
                           <ResponsiveContainer width="100%" height="100%">
                             <BarChart data={feeRows} layout="vertical" margin={{ top: 4, right: 24, bottom: 4, left: 4 }}>
-                              <CartesianGrid stroke={GRID_STROKE} strokeDasharray="3 3" horizontal={false} />
-                              <XAxis type="number" tick={AXIS_TICK} stroke={AXIS_STROKE} tickFormatter={(v: number) => `$${v.toFixed(2)}`} />
-                              <YAxis dataKey="token" type="category" tick={AXIS_TICK} stroke={AXIS_STROKE} width={70} />
-                              <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(value, name) => [formatUsd(Number(value)), name]} />
+                              <CartesianGrid stroke={chart.gridStroke} strokeDasharray="3 3" horizontal={false} />
+                              <XAxis type="number" tick={chart.axisTick} stroke={chart.axisStroke} tickFormatter={(v: number) => `$${v.toFixed(2)}`} />
+                              <YAxis dataKey="token" type="category" tick={chart.axisTick} stroke={chart.axisStroke} width={70} />
+                              <Tooltip contentStyle={chart.tooltip} formatter={(value, name) => [formatUsd(Number(value)), name]} />
                               <Legend wrapperStyle={{ fontSize: 11, paddingTop: 4 }} />
-                              <Bar dataKey="feeUsd" fill="#c97d1e" radius={[0, 4, 4, 0]} name="Total fees" />
+                              <Bar dataKey="feeUsd" fill={chart.barFill} radius={[0, 4, 4, 0]} name="Total fees" />
                               <Bar dataKey="integratorFeeUsd" fill="#e59636" radius={[0, 4, 4, 0]} name="Integrator (revenue)" />
                             </BarChart>
                           </ResponsiveContainer>
@@ -783,10 +774,10 @@ export function AdminView({ onBack }: Props) {
                     <div style={{ width: '100%', height: 260 }}>
                       <ResponsiveContainer width="100%" height="100%">
                         <AreaChart data={assetDaily} margin={{ top: 6, right: 16, bottom: 0, left: -8 }}>
-                          <CartesianGrid stroke={GRID_STROKE} strokeDasharray="3 3" vertical={false} />
-                          <XAxis dataKey="date" tick={AXIS_TICK} tickFormatter={(d: string) => d.slice(5)} stroke={AXIS_STROKE} interval="preserveStartEnd" minTickGap={24} />
-                          <YAxis tick={AXIS_TICK} stroke={AXIS_STROKE} tickFormatter={(v: number) => `$${v.toFixed(2)}`} />
-                          <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(value, name) => [formatUsd(Number(value)), name]} />
+                          <CartesianGrid stroke={chart.gridStroke} strokeDasharray="3 3" vertical={false} />
+                          <XAxis dataKey="date" tick={chart.axisTick} tickFormatter={(d: string) => d.slice(5)} stroke={chart.axisStroke} interval="preserveStartEnd" minTickGap={24} />
+                          <YAxis tick={chart.axisTick} stroke={chart.axisStroke} tickFormatter={(v: number) => `$${v.toFixed(2)}`} />
+                          <Tooltip contentStyle={chart.tooltip} formatter={(value, name) => [formatUsd(Number(value)), name]} />
                           <Legend wrapperStyle={{ fontSize: 11, paddingTop: 4 }} />
                           {assetKeys.map((sym, i) => (
                             <Area key={sym} type="monotone" dataKey={sym} stackId="assets" stroke={assetColor(i)} fill={assetColor(i)} fillOpacity={0.55} name={sym} />
@@ -806,10 +797,10 @@ export function AdminView({ onBack }: Props) {
               <div style={{ width: '100%', height: Math.max(140, orderStatusFunnel(overview.statusFunnel).length * 36 + 40) }}>
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={orderStatusFunnel(overview.statusFunnel)} layout="vertical" margin={{ top: 4, right: 24, bottom: 4, left: 4 }}>
-                    <CartesianGrid stroke={GRID_STROKE} strokeDasharray="3 3" horizontal={false} />
-                    <XAxis type="number" tick={AXIS_TICK} stroke={AXIS_STROKE} allowDecimals={false} />
-                    <YAxis dataKey="status" type="category" tick={AXIS_TICK} stroke={AXIS_STROKE} width={90} />
-                    <Tooltip contentStyle={TOOLTIP_STYLE} />
+                    <CartesianGrid stroke={chart.gridStroke} strokeDasharray="3 3" horizontal={false} />
+                    <XAxis type="number" tick={chart.axisTick} stroke={chart.axisStroke} allowDecimals={false} />
+                    <YAxis dataKey="status" type="category" tick={chart.axisTick} stroke={chart.axisStroke} width={90} />
+                    <Tooltip contentStyle={chart.tooltip} />
                     <Bar dataKey="count" fill="#e59636" radius={[0, 4, 4, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
@@ -823,11 +814,11 @@ export function AdminView({ onBack }: Props) {
               <div style={{ width: '100%', height: Math.max(140, orderSourceBreakdown(overview.sourceBreakdown).length * 36 + 40) }}>
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={orderSourceBreakdown(overview.sourceBreakdown)} layout="vertical" margin={{ top: 4, right: 24, bottom: 4, left: 4 }}>
-                    <CartesianGrid stroke={GRID_STROKE} strokeDasharray="3 3" horizontal={false} />
-                    <XAxis type="number" tick={AXIS_TICK} stroke={AXIS_STROKE} allowDecimals={false} />
-                    <YAxis dataKey="label" type="category" tick={AXIS_TICK} stroke={AXIS_STROKE} width={90} />
+                    <CartesianGrid stroke={chart.gridStroke} strokeDasharray="3 3" horizontal={false} />
+                    <XAxis type="number" tick={chart.axisTick} stroke={chart.axisStroke} allowDecimals={false} />
+                    <YAxis dataKey="label" type="category" tick={chart.axisTick} stroke={chart.axisStroke} width={90} />
                     <Tooltip
-                      contentStyle={TOOLTIP_STYLE}
+                      contentStyle={chart.tooltip}
                       formatter={(value, _name, item) => {
                         const row = item?.payload as (SourceRow & { label: string }) | undefined;
                         return [`${value} swaps · ${formatUsd(row?.volume ?? 0)} · ${row?.users ?? 0} wallets`, 'Swaps'];
@@ -848,10 +839,10 @@ export function AdminView({ onBack }: Props) {
                   <div style={{ width: '100%', height: 220 }}>
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart data={overview.topChains} layout="vertical" margin={{ top: 4, right: 16, bottom: 4, left: 4 }}>
-                        <CartesianGrid stroke={GRID_STROKE} strokeDasharray="3 3" horizontal={false} />
-                        <XAxis type="number" tick={AXIS_TICK} stroke={AXIS_STROKE} allowDecimals={false} />
-                        <YAxis dataKey="chain" type="category" tick={<ChainAxisTick />} stroke={AXIS_STROKE} width={110} />
-                        <Tooltip contentStyle={TOOLTIP_STYLE} />
+                        <CartesianGrid stroke={chart.gridStroke} strokeDasharray="3 3" horizontal={false} />
+                        <XAxis type="number" tick={chart.axisTick} stroke={chart.axisStroke} allowDecimals={false} />
+                        <YAxis dataKey="chain" type="category" tick={<ChainAxisTick />} stroke={chart.axisStroke} width={110} />
+                        <Tooltip contentStyle={chart.tooltip} />
                         <Bar dataKey="swaps" fill="#e59636" radius={[0, 4, 4, 0]} />
                       </BarChart>
                     </ResponsiveContainer>
@@ -864,11 +855,11 @@ export function AdminView({ onBack }: Props) {
                   <div style={{ width: '100%', height: 220 }}>
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart data={overview.topTokens} layout="vertical" margin={{ top: 4, right: 16, bottom: 4, left: 4 }}>
-                        <CartesianGrid stroke={GRID_STROKE} strokeDasharray="3 3" horizontal={false} />
-                        <XAxis type="number" tick={AXIS_TICK} stroke={AXIS_STROKE} allowDecimals={false} />
-                        <YAxis dataKey="token" type="category" tick={<TokenAxisTick />} stroke={AXIS_STROKE} width={90} />
-                        <Tooltip contentStyle={TOOLTIP_STYLE} />
-                        <Bar dataKey="swaps" fill="#c97d1e" radius={[0, 4, 4, 0]} />
+                        <CartesianGrid stroke={chart.gridStroke} strokeDasharray="3 3" horizontal={false} />
+                        <XAxis type="number" tick={chart.axisTick} stroke={chart.axisStroke} allowDecimals={false} />
+                        <YAxis dataKey="token" type="category" tick={<TokenAxisTick />} stroke={chart.axisStroke} width={90} />
+                        <Tooltip contentStyle={chart.tooltip} />
+                        <Bar dataKey="swaps" fill={chart.barFill} radius={[0, 4, 4, 0]} />
                       </BarChart>
                     </ResponsiveContainer>
                   </div>
